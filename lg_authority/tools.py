@@ -24,6 +24,7 @@ class AuthTool(cherrypy.Tool):
 
     def __init__(self):
         """Setup the tool configuration"""
+        self._name = 'lg_authority'
 
     def register_as(self, name):
         """Adds an alias for this tool; may be called multiple times.

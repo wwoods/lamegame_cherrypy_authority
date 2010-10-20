@@ -1,1 +1,4 @@
 *.pyc
+build
+dist
+lamegame_cherrypy_authority.egg-info

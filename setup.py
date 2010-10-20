@@ -23,5 +23,5 @@ setup(name='lamegame_cherrypy_authority',
       entry_points="""
       # -*- Entry points: -*-
       """,
-      test_suite='test'
+      test_suite='tests'
       )
