@@ -1,0 +1,2 @@
+test
+lamegame_cherrypy_authority
