@@ -2,22 +2,13 @@ import cherrypy
 
 from .common import *
 
-# Check for slate support
-try:
-    from lamegame_cherrypy_slates import Slate as _Slate
-    _slates = True
-except ImportError:
-    _slates = False
-
 class AuthTool(cherrypy.Tool):
     """Authentication tool for CherryPy.  Called with various parameters
     to enforce different restrictions on a resource.  
 
-    If lamegame_cherrypy_slates are installed, will automatically replace
-    cherrypy.session with a slate keyed by the user's name.
-
     If the user is found to be logged in, cherrypy.user.slate will be set to
-    the user's slate.
+    the user's slate if lamegame_cherrypy_slates is also installed.  Otherwise,
+    cherrypy.user.slate will be set to cherrypy.session['slate'].
     """
 
     aliases = []
@@ -54,7 +45,7 @@ class AuthTool(cherrypy.Tool):
                                      #priority, since we read the session.
         hooks.attach('before_request_body', self.check_auth, priority=p, **conf)
 
-        if self.hasattr('initialized'):
+        if hasattr(self, 'initialized'):
             return
         self.initialized = True
 
@@ -62,25 +53,52 @@ class AuthTool(cherrypy.Tool):
         #base config dict)
         config['site_key'] = conf.get('site_key', config['site_key'])
 
+        #Set up cherrypy.user
         if not hasattr(cherrypy, 'user'):
             cherrypy.user = cherrypy._ThreadLocalProxy('user')
+
+        #Check for slates
+        if cherrypy.config.get('tools.lg_slates.on', False):
+            try:
+                import lg_slates
+                self._Slate = lg_slates.Slate
+            except:
+                self._Slate = None
+        else:
+            self._Slate = None
+
+        #Set up the authentication system
+        authtype = conf['authtype']
+        config.authmodule = __import__(
+            'lg_authority.authtypes.' + authtype
+            , globals(), locals()
+            , [ '*' ]
+            )
+        config.auth = config.authmodule.setup(conf['authtype_conf'])
 
     def check_auth(self, **kwargs):
         """Check for authenticated state, and setup user slate if applicable.
 
         Then validate permissions by group.
         """
-        user = cherrypy.serving.user = cherrypy.session.get('auth', None)
-        if user is not None and _slates:
-            user.slate = _Slate(
-                kwargs['user_slate_prefix'] + user['name']
-                )
-        else:
-            #TODO - Determine if the alternative of storing "slate" 
-            #content in session is a good idea.
-            user.slate = None
+        #Make the user into an object for conveniences
+        user = cherrypy.session.get('auth', None)
+        user = user and ConfigDict(user)
+        cherrypy.serving.user = user
+        if user is not None:
+            user.name = user['name'] #Convenience
+            if self._Slate is not None:
+                user.slate = self._Slate(
+                    kwargs['user_slate_prefix'] + user['name']
+                    )
+            else:
+                #Rather than neutering cherrypy.user.slate, assign it to
+                #part of the session if slates cannot be found.
+                user.slate = cherrypy.session.setdefault('slate', {})
 
         #Now check static permissions.
+        user = cherrypy.serving.user
+
         groups = kwargs['groups']
         allow = False
         if 'any' in groups:
@@ -103,7 +121,10 @@ class AuthTool(cherrypy.Tool):
             denial = kwargs[denial_key]
             if denial is not None:
                 #TODO - put current request URL in a param
-                raise cherrypy.HTTPRedirect(denial)
+                raise cherrypy.HTTPRedirect(
+                    url_add_parms(denial, { 'redirect': cherrypy.url(relative='server', qs=cherrypy.request.query_string) })
+                    )
             else:
-                raise cherrypy.HTTPError(200, 'Access Denied')
+                
+                raise cherrypy.HTTPError(401, 'Access Denied')
 
