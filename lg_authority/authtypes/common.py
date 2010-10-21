@@ -22,6 +22,12 @@ class AuthInterface(object):
         """
         raise NotImplementedError()
 
+    def set_user_password(self, username, new_pass):
+        """Updates the given user's password.  new_pass is a tuple
+        (algorithm, hashed) that is the user's new password.
+        """
+        raise NotImplementedError()
+
     def login(self, username):
         """Logs in the specified username.  Returns the user record."""
         record = self.get_user_record(username)

@@ -104,9 +104,10 @@ class AuthTool(cherrypy.Tool):
 
         #Now validate static permissions, if any
         access_groups = kwargs['groups']
-        if access_groups[0] == 'all:':
-            access_groups = access_groups[1:]
-            check_groups_all(*access_groups)
-        else:
-            check_groups(access_groups)
+        if access_groups is not None:
+            if len(access_groups) > 0 and access_groups[0] == 'all:':
+                access_groups = access_groups[1:]
+                check_groups_all(*access_groups)
+            else:
+                check_groups(*access_groups)
 

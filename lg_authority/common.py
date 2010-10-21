@@ -108,6 +108,8 @@ def check_groups(*groups):
     of the supplied groups, access is granted.  Otherwise, an
     appropriate cherrypy.HTTPRedirect or cherrypy.HTTPError is raised.
     """
+    if len(groups) == 1 and type(groups[0]) == list:
+        raise TypeError('You passed a list to check_groups.  Instead pass *list.')
     user = cherrypy.serving.user
 
     allow = False
@@ -133,6 +135,8 @@ def check_groups_all(*groups):
 
     Passing an empty array will always allow access.
     """
+    if len(groups) == 1 and type(groups[0]) == list:
+        raise TypeError('You passed a list to check_groups_all.  Instead pass *list.')
     user = cherrypy.serving.user
     user_groups = [ 'any' ]
     if user is not None:

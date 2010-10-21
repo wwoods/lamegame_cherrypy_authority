@@ -25,6 +25,12 @@ class UserListInterface(AuthInterface):
             p = user.get('auth', {}).get('password', None)
         return p
 
+    def set_user_password(self, username, password):
+        user = self.users.get(username)
+        if user is None:
+            raise ValueError("User not found?")
+        user.setdefault('auth', {})['password'] = password
+
 def setup(options):
     return UserListInterface(options)
 

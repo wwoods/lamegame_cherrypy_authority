@@ -3,6 +3,7 @@
 import cherrypy
 
 from .common import *
+import passwords
 
 def method_filter(methods=['GET','HEAD']):
     """From http://tools.cherrypy.org/wiki/HTTPMethodFiltering"""
@@ -26,6 +27,7 @@ class AuthRoot(object):
         kwargs.setdefault('error', '')
         kwargs.setdefault('redirect', '')
         return """
+<div class="lg_auth_form">
 <span style="color:#ff0000;" class="lg_auth_error">{error}</span>
 <form action="login_password" method="POST">
   <input type="hidden" name="redirect" value="{redirect}" />
@@ -41,6 +43,7 @@ class AuthRoot(object):
     OpenID: 
   </p>
 </form>
+</div>
         """.format(**kwargs)
 
     @cherrypy.expose
@@ -50,6 +53,42 @@ class AuthRoot(object):
         if redirect:
             raise cherrypy.HTTPRedirect(redirect)
         return "You have logged out."
+
+    @cherrypy.expose
+    @groups('auth')
+    def change_password(self, **kwargs):
+        error = ''
+        if 'oldpass' in kwargs:
+            if not config.auth.test_password(cherrypy.user.name, kwargs['oldpass']):
+                error = 'Incorrect password'
+            elif kwargs['newpass'] != kwargs['newpass2']:
+                error = 'New passwords do not match'
+            else:
+                new_pass = kwargs['newpass']
+                if len(new_pass) < 6:
+                    error = 'Password must be 6 or more characters'
+                else:
+                    config.auth.set_user_password(
+                        cherrypy.user.name
+                        , [ 'sha256', passwords.sha256(new_pass) ]
+                        )
+                    return "Password changed successfully."
+        return """
+<div class="lg_auth_form">
+<span style="color:#ff0000;" class="lg_auth_error">{error}</span>
+<form action="change_password" method="POST">
+  <p>
+    Change Password:
+    <table>
+      <tr><td>Old Password</td><td><input type="password" name="oldpass" /></td></tr>
+      <tr><td>New Password</td><td><input type="password" name="newpass" /></td></tr>
+      <tr><td>New Password (again)</td><td><input type="password" name="newpass2" /></td></tr>
+      <tr><td><input type="submit" value="Submit" /></td></tr>
+    </table>
+  </p>
+</form>
+</div>
+        """.format(error=error)
 
     @cherrypy.expose
     @method_filter(methods=['POST'])
