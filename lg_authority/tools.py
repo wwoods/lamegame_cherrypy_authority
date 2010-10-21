@@ -25,11 +25,10 @@ class AuthTool(cherrypy.Tool):
         """
         self.aliases.append(name)
 
-    def _setup(self):
-        """Hook into cherrypy.request.  Called automatically if turned on."""
-
-        hooks = cherrypy.serving.request.hooks
-
+    def _merged_args(self):
+        """Since we have aliases and a base config dict, we merge our
+        own arguments.
+        """
         #Merge conf out of the default configuration, aliased configurations,
         #and tools configuration.
         base_dict = config.copy()
@@ -39,8 +38,14 @@ class AuthTool(cherrypy.Tool):
             for k,v in cherrypy.request.config.items():
                 if k.startswith(namestart):
                     base_dict[k[lenstart:]] = v
-        conf = self._merged_args(base_dict)
+        return cherrypy.Tool._merged_args(self, base_dict)
 
+    def _setup(self):
+        """Hook into cherrypy.request.  Called automatically if turned on."""
+
+        hooks = cherrypy.serving.request.hooks
+
+        conf = self._merged_args()
         p = conf.pop('priority', 60) #Priority should be higher than session
                                      #priority, since we read the session.
         hooks.attach('before_request_body', self.check_auth, priority=p, **conf)
@@ -87,6 +92,7 @@ class AuthTool(cherrypy.Tool):
         cherrypy.serving.user = user
         if user is not None:
             user.name = user['name'] #Convenience
+            user.groups = user['groups'] #Convenience
             if self._Slate is not None:
                 user.slate = self._Slate(
                     kwargs['user_slate_prefix'] + user['name']
@@ -96,35 +102,11 @@ class AuthTool(cherrypy.Tool):
                 #part of the session if slates cannot be found.
                 user.slate = cherrypy.session.setdefault('slate', {})
 
-        #Now check static permissions.
-        user = cherrypy.serving.user
-
-        groups = kwargs['groups']
-        allow = False
-        if 'any' in groups:
-            allow = True
-        elif user is not None:
-            if 'auth' in groups:
-                allow = True
-            else:
-                usergroups = user['groups']
-                for group in groups:
-                    if group in usergroups:
-                        allow = True
-                        break
-
-        if not allow:
-            denial_key = 'deny_page_anon'
-            if user is not None:
-                denial_key = 'deny_page_auth'
-
-            denial = kwargs[denial_key]
-            if denial is not None:
-                #TODO - put current request URL in a param
-                raise cherrypy.HTTPRedirect(
-                    url_add_parms(denial, { 'redirect': cherrypy.url(relative='server', qs=cherrypy.request.query_string) })
-                    )
-            else:
-                
-                raise cherrypy.HTTPError(401, 'Access Denied')
+        #Now validate static permissions, if any
+        access_groups = kwargs['groups']
+        if access_groups[0] == 'all:':
+            access_groups = access_groups[1:]
+            check_groups_all(*access_groups)
+        else:
+            check_groups(access_groups)
 

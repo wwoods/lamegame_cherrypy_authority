@@ -1,4 +1,6 @@
 
+import cherrypy
+
 class ConfigDict(dict):
     """Holds all configuration items.  Its own class so that
     it may hold flags as well.
@@ -34,7 +36,12 @@ config.update({
     #Configuration options for the user/group store
     ,
     'groups': [ 'any' ]
-    #Static groups allowed to access the resource.
+    #Static groups allowed to access the resource.  If the FIRST ELEMENT
+    #of the array is 'all:', then the user must be in EVERY group specified
+    #to gain access.  Otherwise, if the user matches a single group, they
+    #will be allowed access.  This convention is ugly, but prevents errors
+    #when a site might wish to use both AND and OR group configurations
+    #in the same environment.
     #'any' means everyone, even unauthenticated users
     #'auth' means all authenticated users
     #'user-' + username means specifically username
@@ -76,4 +83,68 @@ def url_add_parms(base, qs):
     if '?' in base:
         return base + '&' + qs
     return base + '?' + qs
+
+# Basic rejection function calls
+def deny_access():
+    """Unconditionally denies access to the current request."""
+    denial_key = 'deny_page_anon'
+    if cherrypy.serving.user is not None:
+        denial_key = 'deny_page_auth'
+
+    denial = cherrypy.tools.lg_authority._merged_args()[denial_key]
+    if denial is not None:
+        raise cherrypy.HTTPRedirect(
+            url_add_parms(denial, { 'redirect': cherrypy.url(relative='server', qs=cherrypy.request.query_string) })
+            )
+    else:                
+        raise cherrypy.HTTPError(401, 'Access Denied')
+
+def groups(*groups):
+    """Decorator function that winds up calling cherrypy.config(**{ 'tools.lg_authority.groups': groups })"""
+    return cherrypy.config(**{ 'tools.lg_authority.groups': groups })
+
+def check_groups(*groups):
+    """Compare the user's groups to *groups.  If the user is in ANY
+    of the supplied groups, access is granted.  Otherwise, an
+    appropriate cherrypy.HTTPRedirect or cherrypy.HTTPError is raised.
+    """
+    user = cherrypy.serving.user
+
+    allow = False
+    if 'any' in groups:
+        allow = True
+    elif user is not None:
+        if 'auth' in groups:
+            allow = True
+        else:
+            usergroups = user['groups']
+            for group in groups:
+                if group in usergroups:
+                    allow = True
+                    break
+
+    if not allow:
+        deny_access()
+
+def check_groups_all(*groups):
+    """Compare the user's groups to *groups.  If the user is in ALL
+    of the supplied groups, access is granted.  Otherwise, an
+    appropriate cherrypy.HTTPRedirect or cherrypy.HTTPError is raised.
+
+    Passing an empty array will always allow access.
+    """
+    user = cherrypy.serving.user
+    user_groups = [ 'any' ]
+    if user is not None:
+        user_groups.append('auth')
+        user_groups += user.get('groups', [])
+
+    allow = True
+    for group in groups:
+        if group not in user_groups:
+            allow = False
+            break
+
+    if not allow:
+        deny_access()
 
