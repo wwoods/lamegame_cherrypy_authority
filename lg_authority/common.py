@@ -126,6 +126,9 @@ def get_user_groups_named():
 
 def groups(*groups):
     """Decorator function that winds up calling cherrypy.config(**{ 'tools.lg_authority.groups': groups })"""
+    if len(groups) == 1 and type(groups[0]) == list:
+        groups = groups[0]
+
     return cherrypy.config(**{ 'tools.lg_authority.groups': groups })
 
 def check_groups(*groups):
@@ -134,7 +137,7 @@ def check_groups(*groups):
     appropriate cherrypy.HTTPRedirect or cherrypy.HTTPError is raised.
     """
     if len(groups) == 1 and type(groups[0]) == list:
-        raise TypeError('You passed a list to check_groups.  Instead pass *list.')
+        groups = groups[0]
 
     allow = False
     usergroups = get_user_groups()
@@ -154,7 +157,7 @@ def check_groups_all(*groups):
     Passing an empty array will always allow access.
     """
     if len(groups) == 1 and type(groups[0]) == list:
-        raise TypeError('You passed a list to check_groups_all.  Instead pass *list.')
+        groups = groups[0]
 
     allow = True
     usergroups = get_user_groups()

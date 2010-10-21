@@ -1,8 +1,11 @@
 """The root for lg_authority web actions"""
 
+import os
+
 import cherrypy
 
 from .common import *
+from adminroot import AdminRoot
 import passwords
 
 def method_filter(methods=['GET','HEAD']):
@@ -14,13 +17,22 @@ def method_filter(methods=['GET','HEAD']):
 
 method_filter = cherrypy.tools.http_method_filter = cherrypy.Tool('on_start_resource', method_filter)
 
+@groups('any')
 class AuthRoot(object):
     """The lg_authority class responsible for handling authentication."""
 
+    static = cherrypy.tools.staticdir.handler(
+        section='/static'
+        ,dir='static'
+        ,root=os.path.dirname(os.path.abspath(__file__))
+        )
+
+    admin = AdminRoot()
+
     @cherrypy.expose
-    @cherrypy.config(**{ 'tools.lg_authority.groups':[ 'auth' ] })
+    @groups('auth')
     def index(self):
-        return "Hello, {user.name}!  You are a member of the following groups: {groups}".format(user=cherrypy.user, groups=get_user_groups_named())
+        return '<div class="lg_auth_form"><p>You are logged in as {user.name}</p><p>You are a member of the following groups: {groups}</p></div>'.format(user=cherrypy.user, groups=get_user_groups_named())
 
     @cherrypy.expose
     def login(self, **kwargs):
