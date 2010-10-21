@@ -1,4 +1,5 @@
 
+import datetime
 import cherrypy
 
 class ConfigDict(dict):
@@ -28,7 +29,7 @@ config.update({
             #These hashes may also be generated through 
             #AuthRoot()/helper/sha256
             'admin': {
-                'auth': { 'password': ( 'sha256', ['bff74028f285748241375d1c9c7f9b6e85fd3900edf8e601a78f7f84d848b42e', 'admin'] ) }
+                'auth': { 'password': { 'date': datetime.datetime.utcnow(), 'pass': ( 'sha256', ['bff74028f285748241375d1c9c7f9b6e85fd3900edf8e601a78f7f84d848b42e', 'admin'] ) } }
                 ,'groups': [ 'admin' ]
                 }
             }

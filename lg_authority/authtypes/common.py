@@ -16,7 +16,9 @@ class AuthInterface(object):
         raise NotImplementedError()
 
     def get_user_password(self, username):
-        """Returns a tuple/list (type, hashed_pass) for the given username.
+        """Returns a dict consisting of a "date" element that is the UTC time
+        when the password was set, and a "pass" element that is the
+        tuple/list (type, hashed_pass) for the given username.
         Returns None if the user specified does not have a password to
         authenticate through or does not exist.
         """
@@ -25,6 +27,9 @@ class AuthInterface(object):
     def set_user_password(self, username, new_pass):
         """Updates the given user's password.  new_pass is a tuple
         (algorithm, hashed) that is the user's new password.
+        
+        Storage backends must keep track of the time when the password
+        was set.
         """
         raise NotImplementedError()
 
@@ -54,7 +59,7 @@ class AuthInterface(object):
         if expected is None:
             return False
 
-        if passwords.verify(password, expected):
+        if passwords.verify(password, expected['pass']):
             return True
         return False
 

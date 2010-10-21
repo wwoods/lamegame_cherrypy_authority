@@ -2,6 +2,7 @@
 CherryPy's configuration methods.
 """
 
+import datetime
 from .common import AuthInterface
 
 class UserListInterface(AuthInterface):
@@ -30,7 +31,7 @@ class UserListInterface(AuthInterface):
         user = self.users.get(username)
         if user is None:
             raise ValueError("User not found?")
-        user.setdefault('auth', {})['password'] = password
+        user.setdefault('auth', {})['password'] = { 'date': datetime.datetime.utcnow(), 'pass': password }
 
     def _get_group_name(self, groupid):
         record = self.groups.get(groupid, {})
