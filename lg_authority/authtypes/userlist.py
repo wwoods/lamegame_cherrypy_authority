@@ -8,6 +8,7 @@ class UserListInterface(AuthInterface):
     def __init__(self, options):
         self.options = options
         self.users = options['users']
+        self.groups = options['groups']
 
     def get_user_record(self, username):
         user = self.users.get(username)
@@ -30,6 +31,10 @@ class UserListInterface(AuthInterface):
         if user is None:
             raise ValueError("User not found?")
         user.setdefault('auth', {})['password'] = password
+
+    def _get_group_name(self, groupid):
+        record = self.groups.get(groupid, {})
+        return record.get('name', groupid)
 
 def setup(options):
     return UserListInterface(options)

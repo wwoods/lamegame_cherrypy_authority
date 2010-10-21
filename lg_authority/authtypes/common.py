@@ -28,6 +28,13 @@ class AuthInterface(object):
         """
         raise NotImplementedError()
 
+    def _get_group_name(self, groupid):
+        """Retrieves the name for the given groupid.  This is subclassed as
+        _get_group_name because get_group_name automatically handles user-,
+        any, and auth groups
+        """
+        raise NotImplementedError()
+
     def login(self, username):
         """Logs in the specified username.  Returns the user record."""
         record = self.get_user_record(username)
@@ -50,4 +57,18 @@ class AuthInterface(object):
         if passwords.verify(password, expected):
             return True
         return False
+
+    def get_group_name(self, groupid):
+        """Returns the common name for the given groupid.
+        groupid may be the special identifiers 'any', 'auth', or 'user-'
+        as well.
+        """
+
+        if groupid == 'any':
+            return 'Everyone'
+        elif groupid == 'auth':
+            return 'Logged In Users'
+        elif groupid.startswith('user-'):
+            return 'User - ' + groupid[5:]
+        return self._get_group_name(groupid)
 

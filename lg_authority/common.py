@@ -32,8 +32,14 @@ config.update({
                 ,'groups': [ 'admin' ]
                 }
             }
+        ,'groups': {
+            #Groups other than 'any', 'auth', and 'user-'+username
+            #Keys the group identifier to its name
+            'admin': { 'name': 'Administrators' }
+            }
         }
-    #Configuration options for the user/group store
+    #Configuration options for the user/group store.  The default is 
+    #a configuration for userlist (RAM / predefined) storage.
     ,
     'groups': [ 'any' ]
     #Static groups allowed to access the resource.  If the FIRST ELEMENT
@@ -42,9 +48,11 @@ config.update({
     #will be allowed access.  This convention is ugly, but prevents errors
     #when a site might wish to use both AND and OR group configurations
     #in the same environment.
+    #
+    #Special groups:
     #'any' means everyone, even unauthenticated users
     #'auth' means all authenticated users
-    #'user-' + username means specifically username
+    #'user-' + username means specifically (and only) username
     ,
     'user_home_page': '/'
     #The page to redirect to (if relative, then from AuthRoot/OneLevel/)
@@ -99,6 +107,23 @@ def deny_access():
     else:                
         raise cherrypy.HTTPError(401, 'Access Denied')
 
+def get_user_groups():
+    """Returns a list of ids for the user's groups.  Includes
+    special groups 'any', and if logged in, 'auth' and 'user-'
+    """
+    user = cherrypy.serving.user
+    result = [ 'any' ]
+    if user is not None:
+        result = [ 'any', 'auth', 'user-' + user.name ] + user.groups
+    return result
+
+def get_user_groups_named():
+    """Returns a dictionary of id: name groupings for the user"""
+    result = {}
+    for grp in get_user_groups():
+        result[grp] = config.auth.get_group_name(grp)
+    return result
+
 def groups(*groups):
     """Decorator function that winds up calling cherrypy.config(**{ 'tools.lg_authority.groups': groups })"""
     return cherrypy.config(**{ 'tools.lg_authority.groups': groups })
@@ -110,20 +135,13 @@ def check_groups(*groups):
     """
     if len(groups) == 1 and type(groups[0]) == list:
         raise TypeError('You passed a list to check_groups.  Instead pass *list.')
-    user = cherrypy.serving.user
 
     allow = False
-    if 'any' in groups:
-        allow = True
-    elif user is not None:
-        if 'auth' in groups:
+    usergroups = get_user_groups()
+    for group in groups:
+        if group in usergroups:
             allow = True
-        else:
-            usergroups = user['groups']
-            for group in groups:
-                if group in usergroups:
-                    allow = True
-                    break
+            break
 
     if not allow:
         deny_access()
@@ -137,15 +155,11 @@ def check_groups_all(*groups):
     """
     if len(groups) == 1 and type(groups[0]) == list:
         raise TypeError('You passed a list to check_groups_all.  Instead pass *list.')
-    user = cherrypy.serving.user
-    user_groups = [ 'any' ]
-    if user is not None:
-        user_groups.append('auth')
-        user_groups += user.get('groups', [])
 
     allow = True
+    usergroups = get_user_groups()
     for group in groups:
-        if group not in user_groups:
+        if group not in usergroups:
             allow = False
             break
 

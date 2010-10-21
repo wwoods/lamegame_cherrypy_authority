@@ -20,7 +20,7 @@ class AuthRoot(object):
     @cherrypy.expose
     @cherrypy.config(**{ 'tools.lg_authority.groups':[ 'auth' ] })
     def index(self):
-        return "Hello, {user.name}!".format(user=cherrypy.user)
+        return "Hello, {user.name}!  You are a member of the following groups: {groups}".format(user=cherrypy.user, groups=get_user_groups_named())
 
     @cherrypy.expose
     def login(self, **kwargs):
