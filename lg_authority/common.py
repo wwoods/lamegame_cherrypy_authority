@@ -2,6 +2,11 @@
 import datetime
 import cherrypy
 
+def log(message):
+    if log.enabled:
+        cherrypy.log(message, 'LG_AUTHORITY')
+log.enabled = False
+
 class ConfigDict(dict):
     """Holds all configuration items.  Its own class so that
     it may hold flags as well.
@@ -16,6 +21,17 @@ config = ConfigDict()
 config.update({
     'site_key': 'abc123o2qh3otin;oiH#*@(TY(#*Th:T*:(@#HTntb982#HN(:@#*TBH:@#(*THioihI#HOIH%oihio3@H%IOH#@%I)(!*@Y%+(+!@H%~`un23gkh'
     #Site encryption key for passwords.  Should be more than 60 chars.
+    ,
+    'site_storage_type': 'ram'
+    #The storage backend for the auth framework.  Essentially, we use 
+    #a namespaced / expiring namespaces key-value store.
+    ,
+    'site_storage_conf': {
+        }
+    #Configuration options for the specified site storage.
+    ,
+    'site_storage_clean_freq': 60
+    #Minutes between cleaning up expired site storage.
     ,
     'site_authtype': 'userlist'
     #type of system that users and groups are fetched from
@@ -53,6 +69,20 @@ config.update({
     #None - Users will be redirected to the login page if their openID
     #    fails, and the New Account link will be replaced with "New Accounts
     #    not allowed.  Contact administrator."
+    ,
+    'site_debug': True
+    #Print debug messages for lg_authority?  True/False
+    ,
+    'override_sessions': True
+    #Use Slates instead of sessions.  This is default to True, but you might
+    #want to set it to false if you typically set properties in 
+    #cherrypy.session WITHOUT setting them directly (e.g. 
+    #a = MyClass();
+    #cherrypy.session['var'] = a
+    #a.data = 6 #THIS WILL NOT BE SAVED WITH SITE_OVERRIDE_SESSIONS AS TRUE
+    #
+    #If you use an app that does this, feel free to set its specific 
+    #configuration to override_sessions: False
     ,
     'user_slate_prefix': 'user-'
     #The prefix for named slates for each user (only applicable when using
@@ -93,6 +123,9 @@ config.update({
     #resource they cannot retrieve AND are already authenticated.
     #Use None for a standard "Access Denied" page.
     })
+
+#Alternative to None, used mostly for slates
+missing = object()
 
 #Some requests should be POST only
 def method_filter(methods=['GET','HEAD']):

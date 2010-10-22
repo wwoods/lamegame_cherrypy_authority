@@ -26,7 +26,7 @@ cherrypy.config.update({
     'server.socket_host': '0.0.0.0'
     , 'server.socket_port': 8081 
     , 'tools.lg_authority.on': True
-    , 'tools.sessions.on': True
+    , 'tools.lg_authority.site_debug': True
     })
 cherrypy.engine.start()
 cherrypy.engine.block()

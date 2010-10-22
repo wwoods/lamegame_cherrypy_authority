@@ -2,6 +2,9 @@ import cherrypy
 
 from .common import *
 
+from . import slates
+import slates.storage
+
 class AuthTool(cherrypy.Tool):
     """Authentication tool for CherryPy.  Called with various parameters
     to enforce different restrictions on a resource.  
@@ -16,6 +19,12 @@ class AuthTool(cherrypy.Tool):
     def __init__(self):
         """Setup the tool configuration"""
         self._name = 'lg_authority'
+
+    def reset(self):
+        """Reset the initialized variable, so that the next request reloads
+        lg_authority's configuration.  Useful for testing.
+        """
+        del self.initialized
 
     def register_as(self, name):
         """Adds an alias for this tool; may be called multiple times.
@@ -48,33 +57,59 @@ class AuthTool(cherrypy.Tool):
         conf = self._merged_args()
         #Store request config for non-tools as well
         cherrypy.serving.lg_authority = conf
+
+        #Initialization stuff
+        if not hasattr(self, 'initialized'):
+            self.initialized = True
+            self._setup_initialize(conf)
+
         p = conf.pop('priority', 60) #Priority should be higher than session
                                      #priority, since we read the session.
+        if conf['override_sessions']:
+            hooks.attach('before_request_body', slates.init_session, priority=p-10, **conf)
         hooks.attach('before_request_body', self.check_auth, priority=p, **conf)
 
-        if hasattr(self, 'initialized'):
-            return
-        self.initialized = True
-
+    def _setup_initialize(self, conf):
         #Set the site specific settings in config (Most params don't update the 
         #base config dict)
         for k,v in conf.items():
             if k.startswith('site_'):
                 config[k] = v
 
+        log.enabled = conf['site_debug']
+
+        #Set up cherrypy.session?  We do this even if we're not overriding
+        #sessions, since it plays nice with the builtin sessions module.
+        if not hasattr(cherrypy, 'session'):
+            cherrypy.session = cherrypy._ThreadLocalProxy('session')
+
         #Set up cherrypy.user
         if not hasattr(cherrypy, 'user'):
             cherrypy.user = cherrypy._ThreadLocalProxy('user')
 
-        #Check for slates
-        if cherrypy.config.get('tools.lg_slates.on', False):
-            try:
-                import lg_slates
-                self._Slate = lg_slates.Slate
-            except:
-                self._Slate = None
-        else:
-            self._Slate = None
+        #Setup slate storage medium
+        self.storage_type = conf['site_storage_type']
+        self.storage_class = slates.storage.get_storage_class(self.storage_type)
+
+        config.storage_class = self.storage_class
+        log('Found: ' + str(config.storage_class))
+        config.storage_class.setup(conf['site_storage_conf'])
+
+        #Setup monitor thread...
+        if getattr(config, 'storage_cleanup_thread', None) is not None:
+            config.storage_cleanup_thread.stop()
+            config.storage_cleanup_thread.unsubscribe()
+            config.storage_cleanup_thread = None
+        clean_freq = conf['site_storage_clean_freq']
+        if clean_freq:
+            def cleanup():
+                config.storage_class.clean_up()
+            config.storage_cleanup_thread = cherrypy.process.plugins.Monitor(
+                cherrypy.engine, cleanup, clean_freq * 60
+                ,name = 'Slate Storage Cleanup'
+                )
+            config.storage_cleanup_thread.subscribe()
+            config.storage_cleanup_thread.start()
 
         #Set up the authentication system
         authtype = conf['site_authtype']
@@ -97,17 +132,9 @@ class AuthTool(cherrypy.Tool):
         if user is not None:
             user.name = user['name'] #Convenience
             user.groups = user['groups'] #Convenience
-            if self._Slate is not None:
-                user.slate = self._Slate(
-                    kwargs['user_slate_prefix'] + user['name']
-                    )
-            else:
-                #Rather than neutering cherrypy.user.slate, assign it to
-                #part of the session if slates cannot be found.
-                user.slate = cherrypy.session.setdefault(
-                    kwargs['user_slate_prefix'] + 'slate'
-                    , {}
-                    )
+            user.slate = slates.Slate(
+                kwargs['user_slate_prefix'] + user['name']
+                )
 
         #Now validate static permissions, if any
         access_groups = kwargs['groups']
