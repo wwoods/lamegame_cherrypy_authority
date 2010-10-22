@@ -30,14 +30,14 @@ class UserListInterface(AuthInterface):
         user = self.users.get(username)
         p = None
         if user is not None:
-            p = user.get('auth', {}).get('password', None)
+            p = user.get('auth_password', None)
         return p
 
     def set_user_password(self, username, password):
         user = self.users.get(username)
         if user is None:
             raise ValueError("User not found?")
-        user.setdefault('auth', {})['password'] = { 'date': datetime.datetime.utcnow(), 'pass': password }
+        user['auth_password'] = { 'date': datetime.datetime.utcnow(), 'pass': password }
 
     def _get_group_name(self, groupid):
         record = self.groups.get(groupid, {})
