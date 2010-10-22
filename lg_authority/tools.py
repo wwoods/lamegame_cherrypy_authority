@@ -46,6 +46,8 @@ class AuthTool(cherrypy.Tool):
         hooks = cherrypy.serving.request.hooks
 
         conf = self._merged_args()
+        #Store request config for non-tools as well
+        cherrypy.serving.lg_authority = conf
         p = conf.pop('priority', 60) #Priority should be higher than session
                                      #priority, since we read the session.
         hooks.attach('before_request_body', self.check_auth, priority=p, **conf)
@@ -54,9 +56,11 @@ class AuthTool(cherrypy.Tool):
             return
         self.initialized = True
 
-        #Set the site specific key (Most params don't update the 
+        #Set the site specific settings in config (Most params don't update the 
         #base config dict)
-        config['site_key'] = conf.get('site_key', config['site_key'])
+        for k,v in conf.items():
+            if k.startswith('site_'):
+                config[k] = v
 
         #Set up cherrypy.user
         if not hasattr(cherrypy, 'user'):
@@ -73,13 +77,13 @@ class AuthTool(cherrypy.Tool):
             self._Slate = None
 
         #Set up the authentication system
-        authtype = conf['authtype']
+        authtype = conf['site_authtype']
         config.authmodule = __import__(
             'lg_authority.authtypes.' + authtype
             , globals(), locals()
             , [ '*' ]
             )
-        config.auth = config.authmodule.setup(conf['authtype_conf'])
+        config.auth = config.authmodule.setup(conf['site_authtype_conf'])
 
     def check_auth(self, **kwargs):
         """Check for authenticated state, and setup user slate if applicable.
@@ -100,7 +104,10 @@ class AuthTool(cherrypy.Tool):
             else:
                 #Rather than neutering cherrypy.user.slate, assign it to
                 #part of the session if slates cannot be found.
-                user.slate = cherrypy.session.setdefault('slate', {})
+                user.slate = cherrypy.session.setdefault(
+                    kwargs['user_slate_prefix'] + 'slate'
+                    , {}
+                    )
 
         #Now validate static permissions, if any
         access_groups = kwargs['groups']

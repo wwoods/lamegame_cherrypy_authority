@@ -47,6 +47,38 @@ class AuthRoot(object):
 
         kwargs.setdefault('error', '')
         kwargs.setdefault('redirect', '')
+        if config['site_registration'] is None:
+            kwargs['new_account'] = """<p class="lg_auth_newaccount">
+New accounts are not allowed.  Contact administrator if you need access.
+</p>"""
+        else:
+            kwargs['new_account'] = """<p class="lg_auth_newaccount">
+<a href="{0}">Don't have an account here?  Create one.</a>
+</p>""".format(url_add_parms('new_account', { 'redirect': kwargs.get('redirect', '') }))
+
+        if self.login_openid.supported:
+            #Setup OpenID providers
+            openid_list = []
+            def add_provider(name, url):
+                li = """<li><a href="{url}">{name}</a></li>""".format(
+                    url = url_add_parms('login_openid', { 'url': url, 'redirect': kwargs['redirect'] })
+                    ,name = name
+                    )
+                openid_list.append(li)
+
+            add_provider('Google', 'https://www.google.com/accounts/o8/id')
+            add_provider('Yahoo!', 'http://yahoo.com')
+            openid_list.append("""<li><form method="GET" action="login_openid" class="lg_auth_openid_><input type="hidden" name="redirect" value="{redirect}"/>OpenID URL: <input style="width:20em;" type="text" name="url" value="http://"/><input type="submit" value="Submit"/></form></li>""".format(**kwargs))
+            openid_list = ''.join(openid_list)
+            kwargs['openid'] = """
+<p class="lg_auth_select_openid">
+  OpenID (have an account with any of these providers?  Click the appropriate icon to use it here):<ul>
+    {openid_list}
+  </ul>
+</p>""".format(openid_list=openid_list)
+        else:
+            kwargs['openid'] = ''
+
         return """
 <div class="lg_auth_form">
 <span style="color:#ff0000;" class="lg_auth_error">{error}</span>
@@ -60,9 +92,9 @@ class AuthRoot(object):
       <tr><td><input type="submit" value="Submit" /></td></tr>
     </table>
   </p>
-  <p>
-    OpenID: 
-  </p>
+</form>
+{openid}
+{new_account}
 </form>
 </div>
         """.format(**kwargs)
@@ -74,6 +106,40 @@ class AuthRoot(object):
         if redirect:
             raise cherrypy.HTTPRedirect(redirect)
         return "You have logged out."
+    
+    @cherrypy.expose
+    def new_account(self, **kwargs):
+        if cherrypy.request.method.upper() == 'POST':
+            pass #TODO - pass off to registration method.
+
+        template_args = { 
+            'openid': kwargs.get('openid', '') 
+            ,'password_form': ''
+            ,'error': kwargs.get('error', '')
+            }
+        if kwargs.get('openid') != 'stored':
+            template_args['password_form'] = """
+<tr><td>Password</td><td><input type="password" name="password" /></td></tr>
+<tr><td>Password (again)</td><td><input type="password" name="password2" /></td></tr>
+"""
+
+        #TODO - Go through registration providers, and ask for fields
+        reg_forms = []
+        template_args['registration_forms'] = ''.join(reg_forms)
+
+        return """<div class="lg_auth_form lg_auth_new_account">
+<span style="color:#ff0000;" class="lg_auth_error">{error}</span>
+<form method="POST" action="new_account">
+  <h1>New User Registration</h1>
+  <input type="hidden" name="openid" value="{openid}" />
+  <table>
+    <tr><td>Username</td><td><input type="text" name="username" /></td></tr>
+    {password_form}
+    {registration_forms}
+    <tr><td><input type="submit" value="Submit" /></td></tr>
+  </table>
+</form>
+</div>""".format(**template_args)
 
     @cherrypy.expose
     @groups('auth')
@@ -135,7 +201,16 @@ class AuthRoot(object):
 
         #No known user has that openID... ask if they want to register,
         #if applicable.
-        raise cherrypy.HTTPRedirect(
-            url_add_parms('../login', { 'error': 'Unknown OpenID: ' + url, redirect: redirect or '' })
-            )
+        if config['site_registration'] is None:
+            raise cherrypy.HTTPRedirect(
+                url_add_parms('../login', { 'error': 'Unknown OpenID: ' + url, 'redirect': redirect or '' })
+                )
+        else:
+            #We store the openid in session to prevent abusive services
+            #registering a bunch of usernames with OpenID urls that do
+            #not belong to them.
+            cherrypy.session['openid_url'] = url
+            raise cherrypy.HTTPRedirect(
+                url_add_parms('../new_account', { 'error': 'Unknown OpenID.  If you would like to register an account with this OpenID, fill out the following form:', 'openid': 'stored', 'redirect': redirect or '' })
+                )
 

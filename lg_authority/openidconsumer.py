@@ -11,6 +11,8 @@ except ImportError:
     class OpenIdConsumerRoot(object):
         """The OpenIdConsumerRoot when python-openid is not installed OR lg_slates is not installed."""
 
+        supported = False
+
         @cherrypy.expose
         def default(*args, **kwargs):
             return """<div class="lg_auth_form">OpenID is not supported on this server</div>"""
@@ -36,6 +38,8 @@ else:
         mounted at {AuthRoot}/login_openid
         """
 
+        supported = True
+
         static_path = '../static'
         store = MemoryStore()
 
@@ -45,9 +49,9 @@ else:
         def get_consumer(self):
             return consumer.Consumer(cherrypy.session, self.store)
 
-        def redirect_err(self, error):
+        def redirect_err(self, error, redirect):
             raise cherrypy.HTTPRedirect(
-                url_add_parms('../login', { 'error': error })
+                url_add_parms('../login', { 'error': error, 'redirect': redirect })
                 )
 
         def get_points(self, redirect=None):
@@ -57,12 +61,17 @@ else:
             return_dict = {}
             if redirect:
                 return_dict['redirect'] = redirect
-            return (cherrypy.url('./'), url_add_parms(cherrypy.url('./finish'), return_dict))
+            return (
+                cherrypy.url('./') #MUST be static.  If changed, some providers
+                                   #also change the identity URL.
+                , url_add_parms(cherrypy.url('./finish'), return_dict)
+                )
 
         @cherrypy.expose
         def index(self, url, redirect=None):
             """Begin the openID request"""
             openid_url = url
+            redirect = redirect or ''
             c = self.get_consumer()
             error = None
 
@@ -70,10 +79,12 @@ else:
                 auth_request = c.begin(openid_url)
             except DiscoveryFailure as e:
                 error = 'OpenID Discovery Failure: {0}'.format(e)
-                self.redirect_err(error)
+                self.redirect_err(error, redirect)
 
+            #These two are so widely unsupported and uncompliant,
+            #that they're hardly worth supporting.
             #Here's where we ask for things like email
-            sreg_request = sreg.SRegRequest(required=['email','dob'])
+            sreg_request = sreg.SRegRequest()#required=['email','dob'])
             auth_request.addExtension(sreg_request)
 
             #Look at attribute exchange (ax) more
@@ -110,11 +121,12 @@ else:
         #arguments as either POST or GET
         def finish(self, **kwargs):
             """End the openID request"""
+            redirect = kwargs['redirect'] #Required
             result = {}
 
             c = self.get_consumer()
 
-            trust_root, return_to = self.get_points()
+            trust_root, return_to = self.get_points(redirect)
             response = c.complete(kwargs, return_to)
 
             #Check the sreg response
@@ -128,16 +140,16 @@ else:
 
                 return self.auth_root.login_openid_response(
                     response.getDisplayIdentifier()
-                    ,redirect=kwargs.get('redirect', None)
+                    ,redirect=redirect
                     )
                 return """<p>OpenID: OK</p><p>url: {0}</p><p>sreg: {1}</p><p>ax: {2}</p><p>pape: {3}</p>""".format(
                     response.getDisplayIdentifier(), sreg_response, ax_response, pape_response
                     )
 
             elif response.status == consumer.CANCEL:
-                self.redirect_err('OpenID authentication cancelled')
+                self.redirect_err('OpenID authentication cancelled', redirect)
             elif response.status == consumer.FAILURE:
-                self.redirect_err('OpenID authentication failed')
+                self.redirect_err('OpenID authentication failed', redirect)
 
         @cherrypy.expose
         def xrds(self):

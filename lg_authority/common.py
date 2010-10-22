@@ -9,20 +9,18 @@ class ConfigDict(dict):
 
 config = ConfigDict()
 #Set defaults, show params.  These are overwritten first 
-#by any config in the tools.lg_authority or lg_authority section, then
-#CherryPy config.
+#by any config in the tools.lg_authority or lg_authority aliased section, then
+#by CherryPy config.
+#Any key prefixed with site_ is meant to be site-wide, and will be written
+#to this dict on the first request (NO MATTER WHERE THE REQUEST IS TO).
 config.update({
     'site_key': 'abc123o2qh3otin;oiH#*@(TY(#*Th:T*:(@#HTntb982#HN(:@#*TBH:@#(*THioihI#HOIH%oihio3@H%IOH#@%I)(!*@Y%+(+!@H%~`un23gkh'
     #Site encryption key for passwords.  Should be more than 60 chars.
     ,
-    'user_slate_prefix': 'user-'
-    #The prefix for named slates for each user (only applicable when using
-    #lamegame_cherrypy_slates
-    ,
-    'authtype': 'userlist'
+    'site_authtype': 'userlist'
     #type of system that users and groups are fetched from
     ,
-    'authtype_conf': {
+    'site_authtype_conf': {
         'users': {
             #The example admin user - the password is 'admin', and
             #was processed through lg_authority.passwords.sha256('admin').
@@ -44,6 +42,22 @@ config.update({
         }
     #Configuration options for the user/group store.  The default is 
     #a configuration for userlist (RAM / predefined) storage.
+    ,
+    'site_registration': 'admin'
+    #The required USER-SIDE registration mechanism.  Common values are:
+    #email - Email based registration (optionally w/ recaptcha).  
+    #    See site_email_ settings.
+    #recaptcha - A recaptcha at account creation is enough
+    #admin - A user will define their account (optionally with recaptcha), but 
+    #    an admin must sign off on it.
+    #None - Users will be redirected to the login page if their openID
+    #    fails, and the New Account link will be replaced with "New Accounts
+    #    not allowed.  Contact administrator."
+    ,
+    'user_slate_prefix': 'user-'
+    #The prefix for named slates for each user (only applicable when using
+    #lamegame_cherrypy_slates).  Can be overridden at different paths to 
+    #"isolate" user storage
     ,
     'groups': [ 'any' ]
     #Static groups allowed to access the resource.  If the FIRST ELEMENT
