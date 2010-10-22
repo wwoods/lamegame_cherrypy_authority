@@ -11,11 +11,12 @@ class RamStorage(SlateStorage):
         if RamStorage.is_expired(name):
             self.record = self.cache[name] = { 'timeout': timeout }
         else:
-            self.record = self.cache.setdefault(name, {})
+            self.record = self.cache[name]
             if force_timeout:
                 self.record['timeout'] = timeout
 
-        self.record['expires'] = time.time() + 60 * self.record['timeout']
+        if self.record['timeout'] is not None:
+            self.record['expires'] = time.time() + 60 * self.record['timeout']
         self.data = self.record.setdefault('data', {})
 
     def __str__(self):
