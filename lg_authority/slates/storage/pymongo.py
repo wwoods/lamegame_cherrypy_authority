@@ -1,4 +1,5 @@
 import datetime
+import cPickle as pickle
 from .common import *
 
 class PymongoStorage(SlateStorage):
