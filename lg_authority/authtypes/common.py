@@ -11,7 +11,14 @@ class AuthInterface(object):
     def get_user_record(self, username):
         """Returns the record for the given username (or None).  Should 
         be a dict that looks like the following: 
-        { 'name': username, 'groups': [ 'groupid1', 'groupid2' ] }
+        { 'name': username, 'groups': [ 'groupid1', 'groupid2' ], 'info': {} }
+
+        info contains e.g. 'email', 'firstname', 'lastname', etc.
+        """
+        raise NotImplementedError()
+
+    def get_user_from_openid(self, openid_url):
+        """Returns the username for the given openid_url, or None.
         """
         raise NotImplementedError()
 

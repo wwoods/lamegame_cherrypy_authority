@@ -6,16 +6,8 @@ import cherrypy
 
 from .common import *
 from adminroot import AdminRoot
+from openidconsumer import OpenIdConsumerRoot
 import passwords
-
-def method_filter(methods=['GET','HEAD']):
-    """From http://tools.cherrypy.org/wiki/HTTPMethodFiltering"""
-    method = cherrypy.request.method.upper()
-    if method not in methods:
-        cherrypy.response.headers['Allow'] = ', '.join(methods)
-        raise cherrypy.HTTPError(405)
-
-method_filter = cherrypy.tools.http_method_filter = cherrypy.Tool('on_start_resource', method_filter)
 
 @groups('any')
 class AuthRoot(object):
@@ -29,6 +21,18 @@ class AuthRoot(object):
 
     admin = AdminRoot()
 
+    def __init__(self):
+        self.login_openid = OpenIdConsumerRoot(self)
+
+    def login_redirect(self, user, redirect=None):
+        """Raises cherrypy.HTTPRedirect to the appropriate location.
+        Used by login handlers on success.
+        """
+        redirect = redirect or config['user_home_page']
+        if hasattr(redirect, '__call__'):
+            redirect = redirect(user)
+        raise cherrypy.HTTPRedirect(redirect)
+
     @cherrypy.expose
     @groups('auth')
     def index(self):
@@ -36,6 +40,11 @@ class AuthRoot(object):
 
     @cherrypy.expose
     def login(self, **kwargs):
+        #Check for already logged in.  This allows page refreshes to login
+        #if multiple tabs were open.
+        if cherrypy.user:
+            self.login_redirect(cherrypy.user, kwargs.get('redirect'))
+
         kwargs.setdefault('error', '')
         kwargs.setdefault('redirect', '')
         return """
@@ -107,14 +116,26 @@ class AuthRoot(object):
     def login_password(self, username, password, redirect=None):
         if config.auth.test_password(username, password):
             user = config.auth.login(username)
-            redirect = redirect or config['user_home_page']
-            if hasattr(redirect, '__call__'):
-                redirect = redirect(user)
-            raise cherrypy.HTTPRedirect(redirect)
+            self.login_redirect(user, redirect)
         raise cherrypy.HTTPRedirect(
             url_add_parms(
                 'login'
                 , { 'error': 'Invalid Credentials', 'redirect': redirect or '' }
                 )
+            )
+
+    def login_openid_response(self, url, redirect=None, **kwargs):
+        """Handles an openid login.  
+        This is called directly by a descendent of the AuthRoot path.
+        """
+        username = config.auth.get_user_from_openid(url)
+        if username is not None:
+            user = config.auth.login(username)
+            self.login_redirect(user, redirect)
+
+        #No known user has that openID... ask if they want to register,
+        #if applicable.
+        raise cherrypy.HTTPRedirect(
+            url_add_parms('../login', { 'error': 'Unknown OpenID: ' + url, redirect: redirect or '' })
             )
 

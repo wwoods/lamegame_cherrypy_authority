@@ -20,6 +20,12 @@ class UserListInterface(AuthInterface):
                 }
         return None
 
+    def get_user_from_openid(self, openid_url):
+        for user,d in self.users.items():
+            if openid_url in d.get('openid', []):
+                return user
+        return None
+
     def get_user_password(self, username):
         user = self.users.get(username)
         p = None

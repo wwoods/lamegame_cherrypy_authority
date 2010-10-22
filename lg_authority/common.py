@@ -29,7 +29,10 @@ config.update({
             #These hashes may also be generated through 
             #AuthRoot()/helper/sha256
             'admin': {
-                'auth': { 'password': { 'date': datetime.datetime.utcnow(), 'pass': ( 'sha256', ['bff74028f285748241375d1c9c7f9b6e85fd3900edf8e601a78f7f84d848b42e', 'admin'] ) } }
+                'auth': { 
+                    'password': { 'date': datetime.datetime.utcnow(), 'pass': ( 'sha256', ['bff74028f285748241375d1c9c7f9b6e85fd3900edf8e601a78f7f84d848b42e', 'admin'] ) } 
+                    ,'openid': [ ]
+                    }
                 ,'groups': [ 'admin' ]
                 }
             }
@@ -76,6 +79,16 @@ config.update({
     #resource they cannot retrieve AND are already authenticated.
     #Use None for a standard "Access Denied" page.
     })
+
+#Some requests should be POST only
+def method_filter(methods=['GET','HEAD']):
+    """From http://tools.cherrypy.org/wiki/HTTPMethodFiltering"""
+    method = cherrypy.request.method.upper()
+    if method not in methods:
+        cherrypy.response.headers['Allow'] = ', '.join(methods)
+        raise cherrypy.HTTPError(405)
+
+method_filter = cherrypy.tools.http_method_filter = cherrypy.Tool('on_start_resource', method_filter)
 
 #Commonly resolve urlencode
 try:
