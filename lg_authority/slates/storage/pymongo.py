@@ -14,13 +14,13 @@ class PymongoStorage(SlateStorage):
     conn = None
     conn__doc = "PyMongo collection object"
 
-    def __init__(self, name, timeout):
+    def __init__(self, name, timeout, force_timeout):
         self.name = name
         self._cache = { 'auth': None }
         
         get_fields = {
             '_id': 1
-            ,'time': 1
+            ,'timeout': 1
             ,'expire': 1
             ,'data.auth': 1
             }
@@ -30,7 +30,7 @@ class PymongoStorage(SlateStorage):
         if core is None or core.get('expire', now) < now:
             new_dict = {
                 'name': self.name
-                ,'time': now
+                ,'timeout': timeout
                 ,'data': {}
                 }
             if timeout is not None:
@@ -46,25 +46,23 @@ class PymongoStorage(SlateStorage):
             #We also have to handle the case where timeout
             #has changed from/to None
             new_exp = missing
-            if 'expire' in core:
-                if timeout is None:
-                    new_exp = None
-                else:
-                    half = (core['expire'] - core['time']) // 2
-                    up_time = core['time'] + half
-                    if up_time < now:
-                        new_exp = now + datetime.timedelta(minutes=timeout)
-            elif timeout is not None: #expire not in core
-                new_exp = now + datetime.timedelta(minutes=timeout)
+            if force_timeout:
+                new_exp = timeout
+            else:
+                if 'expire' in core:
+                    timeout = core.get('timeout', timeout)
+                    half = core['expire'] - datetime.timedelta(minutes=timeout//2)
+                    if half < now:
+                        new_exp = timeout
 
             if new_exp is not missing:
                 updates = {
                     '$set': {
-                        'time': now
+                        'timeout': new_exp
                         }
                     }
                 if new_exp is not None:
-                    updates['$set']['expire'] = new_exp
+                    updates['$set']['expire'] = now + datetime.timedelta(minutes=new_exp)
                 else:
                     updates['$unset'] = { 'expire': 1 }
                 self.conn.update({ '_id': self._id }, updates)

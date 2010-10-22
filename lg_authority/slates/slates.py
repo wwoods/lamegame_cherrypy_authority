@@ -43,11 +43,12 @@ class Slate(object): #PY3 , metaclass=cherrypy._AttributeDocstrings):
     clean_freq = 60
     clean_freq__doc = "The poll rate for expired slate cleanup in minutes."
  
-    def __init__(self, name, timeout=missing):
+    def __init__(self, name, timeout=missing, force_timeout=False):
         """Initializes the Slate, and wipes expired data if necessary.
-        Also updates the Slate's Timestamp (preventing it from expiring for
-        timeout minutes), and if timeout is not missing and is not equal
-        to the stored timeout, will update the timeout record.
+        Also updates the Slate's Expiration date if needed.
+
+        Will only update the Slate's timeout if either the slate is new (or
+        previously expired), or the force_timeout parameter is set to True.
         """
         self.name = name
         self._data = {}
@@ -55,7 +56,7 @@ class Slate(object): #PY3 , metaclass=cherrypy._AttributeDocstrings):
         if not timeout is missing:
             self.timeout = timeout
 
-        self.storage = config.storage_class(self.name, self.timeout)
+        self.storage = config.storage_class(self.name, self.timeout, force_timeout)
         log('Slate loaded: {0}'.format(repr(self.storage)))
 
     @classmethod

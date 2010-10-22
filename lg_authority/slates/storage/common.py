@@ -7,11 +7,14 @@ class SlateStorage(object): #PY3 , metaclass=cherrypy._AttributeDocstring):
     name = None
     name__doc = "The slate's name"
 
-    def __init__(self, name, timeout):
+    def __init__(self, name, timeout, force_timeout):
         """Initializes storage for a slate.  Should clear data if expired,
         and update timestamp / timeout.
 
         timeout may be None for no expiration.
+
+        If force_timeout is set, then the slate's timeout MUST be set to the
+        specified timeout, even if the slate already exists.
 
         It is recommended (if possible) to download and cache the "auth" key's
         value in the initial data request.
@@ -77,6 +80,6 @@ class SlateStorage(object): #PY3 , metaclass=cherrypy._AttributeDocstring):
 
     @classmethod
     def is_expired(cls, name):
-        """Return True if the given slate is expired"""
+        """Return True if the given slate is expired or does not exist"""
         raise NotImplementedError()
 

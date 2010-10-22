@@ -6,15 +6,16 @@ class RamStorage(SlateStorage):
     # Class-level objects. Don't rebind these!
     cache = {}
 
-    def __init__(self, name, timeout):
+    def __init__(self, name, timeout, force_timeout):
         self.name = name
         if RamStorage.is_expired(name):
-            self.record = self.cache[name] = {}
+            self.record = self.cache[name] = { 'timeout': timeout }
         else:
             self.record = self.cache.setdefault(name, {})
+            if force_timeout:
+                self.record['timeout'] = timeout
 
-        self.record['timestamp'] = time.time()
-        self.record['timeout'] = timeout
+        self.record['expires'] = time.time() + 60 * self.record['timeout']
         self.data = self.record.setdefault('data', {})
 
     def __str__(self):
@@ -54,7 +55,7 @@ class RamStorage(SlateStorage):
             return True
         if obj['timeout'] is None:
             return False
-        if obj['timestamp'] + obj['timeout'] * 60 < time.time():
+        if obj['expires'] < time.time():
             return True
         return False
     
