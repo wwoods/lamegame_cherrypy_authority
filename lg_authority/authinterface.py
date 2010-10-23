@@ -1,12 +1,25 @@
-"""Common elements for all authtypes."""
+import datetime
 
-import cherrypy
-from .. import passwords
+from .common import *
+from . import passwords
+from .slates import Slate
 
 class AuthInterface(object):
-    """The shared interface for authtypes.  Public functions that
-    need to be overridden are specified first.
+    """The interface for auth-specific functions with the storage backend.
     """
+
+    def user_create(self, username, data, timeout=missing):
+        """Inserts a user or raises an *Error"""
+        kwargs = { 'timeout': None }
+        if timeout is not missing:
+            kwargs = { 'timeout': timeout, 'force_timeout': True }
+
+        sname = config['site_user_prefix'] + username
+        if not Slate.is_expired(sname):
+            raise Exception('User already exists')
+
+        user = Slate(sname, **kwargs)
+        user.update(data)
 
     def get_user_record(self, username):
         """Returns the record for the given username (or None).  Should 
@@ -15,12 +28,24 @@ class AuthInterface(object):
 
         info contains e.g. 'email', 'firstname', 'lastname', etc.
         """
-        raise NotImplementedError()
+        slate = Slate.lookup(config['site_user_prefix'] + username)
+        if slate is None:
+            return None
+        return {
+            'name': username
+            ,'groups': slate['groups']
+            }
 
     def get_user_from_openid(self, openid_url):
         """Returns the username for the given openid_url, or None.
         """
-        raise NotImplementedError()
+        result = config.storage_class.find_slates_with('auth_openid', openid_url)
+        if len(result) == 0:
+            return None
+        elif len(result) == 1:
+            return result[0][len(config['site_user_prefix']):]
+        else:
+            raise ValueError('More than one user has this OpenID')
 
     def get_user_password(self, username):
         """Returns a dict consisting of a "date" element that is the UTC time
@@ -29,23 +54,40 @@ class AuthInterface(object):
         Returns None if the user specified does not have a password to
         authenticate through or does not exist.
         """
-        raise NotImplementedError()
+        user = Slate.lookup(config['site_user_prefix'] + username)
+        return user and user.get('auth_password', None)
 
     def set_user_password(self, username, new_pass):
         """Updates the given user's password.  new_pass is a tuple
         (algorithm, hashed) that is the user's new password.
-        
-        Storage backends must keep track of the time when the password
-        was set.
         """
-        raise NotImplementedError()
+        user = Slate.lookup(config['site_user_prefix'] + username)
+        if user is None:
+            raise ValueError('User not found')
+        user['auth_password'] = { 'date': datetime.datetime.utcnow(), 'pass': new_pass }
 
     def _get_group_name(self, groupid):
         """Retrieves the name for the given groupid.  This is subclassed as
         _get_group_name because get_group_name automatically handles user-,
         any, and auth groups
         """
-        raise NotImplementedError()
+        group = Slate.lookup(config['site_group_prefix'] + groupid)
+        if group is not None:
+            return group['name']
+        return 'Unnamed ({0})'.format(groupid)
+
+    def group_create(self, groupid, data, timeout=missing):
+        """Insert the specified group, or raise an *Error"""
+        kwargs = { 'timeout': None }
+        if timeout is not missing:
+            kwargs = { 'timeout': timeout, 'force_timeout': True }
+
+        sname = config['site_group_prefix'] + groupid
+        if not Slate.is_expired(sname):
+            raise Exception('Group already exists')
+
+        group = Slate(sname, **kwargs)
+        group.update(data)
 
     def login(self, username):
         """Logs in the specified username.  Returns the user record."""

@@ -24,38 +24,50 @@ config.update({
     ,
     'site_storage_type': 'ram'
     #The storage backend for the auth framework.  Essentially, we use 
-    #a namespaced / expiring namespaces key-value store.
+    #a namespaced key-value store with expiration times on the namespaces.
     ,
     'site_storage_conf': {
         }
     #Configuration options for the specified site storage.
     ,
+    'site_storage_shards': [
+        ('user-', '_users')
+        , ('group-', '_users')
+        , ('session-', '_sessions')
+        , ('', '_store')
+        ]
+    #Store different slates in different sections.  Useful for
+    #keeping user data (which is mostly permanent) separate from
+    #session data.
+    #A blank entry ('') will prevent the main storage table/collection
+    #from being created at all; it is just used as a common name root.
+    #This configuration item is useless when using RAM storage.
+    ,
     'site_storage_clean_freq': 60
     #Minutes between cleaning up expired site storage.
     ,
-    'site_authtype': 'userlist'
-    #type of system that users and groups are fetched from
+    'site_user_prefix': 'user-'
+    #Prefix for user namespaces in storage system.  If you change, be sure to
+    #change site_storage_shards too.
     ,
-    'site_authtype_conf': {
-        'users': {
-            #The example admin user - the password is 'admin', and
-            #was processed through lg_authority.passwords.sha256('admin').
-            #These hashes may also be generated through 
-            #AuthRoot()/helper/sha256
-            'admin': {
-                'auth_password': { 'date': datetime.datetime.utcnow(), 'pass': ( 'sha256', ['bff74028f285748241375d1c9c7f9b6e85fd3900edf8e601a78f7f84d848b42e', 'admin'] ) }
-                ,'auth_openid': [ ]
-                ,'groups': [ 'admin' ]
-                }
-            }
-        ,'groups': {
-            #Groups other than 'any', 'auth', and 'user-'+username
-            #Keys the group identifier to its name
-            'admin': { 'name': 'Administrators' }
+    'site_user_list': {
+        'admin': {
+            'auth_password': { 'date': datetime.datetime.utcnow(), 'pass': ( 'sha256', ['bff74028f285748241375d1c9c7f9b6e85fd3900edf8e601a78f7f84d848b42e', 'admin'] ) }
+            ,'auth_openid': []
+            ,'groups': [ 'admin' ]
             }
         }
-    #Configuration options for the user/group store.  The default is 
-    #a configuration for userlist (RAM / predefined) storage.
+    #User records to create if they do not already exist
+    ,
+    'site_group_prefix': 'group-'
+    #Prefix for group namespaces in storage system.  If you change, be sure
+    #to look at site_storage_shards as well.
+    ,
+    'site_group_list': {
+        'admin': { 'name': 'Administrators' }
+        }
+    #Group records to create if they do not already exist.  
+    #any, auth, and user- groups are automatic.
     ,
     'site_registration': 'admin'
     #The required USER-SIDE registration mechanism.  Common values are:
@@ -65,14 +77,15 @@ config.update({
     #admin - A user will define their account (optionally with recaptcha), but 
     #    an admin must sign off on it.
     #None - Users will be redirected to the login page if their openID
-    #    fails, and the New Account link will be replaced with "New Accounts
-    #    not allowed.  Contact administrator."
+    #    fails, and the New Account link will be replaced with text asking
+    #    users who feel they should have permission to contact the 
+    #    administrator.
     ,
     'site_debug': True
     #Print debug messages for lg_authority?  True/False
     ,
     'override_sessions': True
-    #Use Slates instead of sessions.  This is default to True, but you might
+    #Use Slates instead of sessions.  This defaults to True, but you might
     #want to set it to false if you typically set properties in 
     #cherrypy.session WITHOUT setting them directly (e.g. 
     #a = MyClass();
@@ -82,10 +95,10 @@ config.update({
     #If you use an app that does this, feel free to set its specific 
     #configuration to override_sessions: False
     ,
-    'user_slate_prefix': 'user-'
+    'user_slate_prefix': 'uslate-'
     #The prefix for named slates for each user (only applicable when using
     #lamegame_cherrypy_slates).  Can be overridden at different paths to 
-    #"isolate" user storage
+    #"isolate" user storage.  Don't use site_user_prefix!
     ,
     'groups': [ 'any' ]
     #Static groups allowed to access the resource.  If the FIRST ELEMENT

@@ -59,6 +59,15 @@ class Slate(object): #PY3 , metaclass=cherrypy._AttributeDocstrings):
         self.storage = config.storage_class(self.name, self.timeout, force_timeout)
         log('Slate loaded: {0}'.format(repr(self.storage)))
 
+    @classmethod 
+    def lookup(cls, name):
+        """Fetch the specified slate, but if it does not exist or is expired,
+        return None instead of creating it.
+        """
+        if cls.is_expired(name):
+            return None
+        return Slate(name)
+
     @classmethod
     def is_expired(cls, id):
         """Returns True if the given Slate identifier is expired or non-existant."""

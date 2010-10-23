@@ -22,11 +22,23 @@ class SlateStorage(object): #PY3 , metaclass=cherrypy._AttributeDocstring):
         raise NotImplementedError()
 
     def set(self, key, value):
-        """Sets the given key to the given value"""
+        """Sets the given key to the given value.  If value is a list of 
+        unique strings,
+        it is recommended that drivers keep the array indexable rather
+        than directly pickling it.  This is used by the authentication system,
+        specifically for groups and openID.
+        """
         raise NotImplementedError()
 
     def get(self, key, default):
         """Gets the given key, or if it does not exist, returns default"""
+        raise NotImplementedError()
+
+    @classmethod
+    def find_slates_with(cls, key, value):
+        """Return a list of slate names having value in the array keyed by
+        key
+        """
         raise NotImplementedError()
         
     def pop(self, key, default):

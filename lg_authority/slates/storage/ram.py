@@ -31,6 +31,16 @@ class RamStorage(SlateStorage):
     def get(self, key, default):
         return self.data.get(key, default)
 
+    @classmethod
+    def find_slates_with(cls, key, value):
+        result = []
+        for k,v in cls.cache.items():
+            d = v.get('data', {})
+            if value in d.get(key, []):
+                result.append(k)
+
+        return result
+
     def pop(self, key, default):
         return self.data.pop(key, default)
 

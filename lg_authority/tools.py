@@ -4,6 +4,7 @@ from .common import *
 
 from . import slates
 import slates.storage
+from .authinterface import AuthInterface
 
 class AuthTool(cherrypy.Tool):
     """Authentication tool for CherryPy.  Called with various parameters
@@ -111,14 +112,20 @@ class AuthTool(cherrypy.Tool):
             config.storage_cleanup_thread.subscribe()
             config.storage_cleanup_thread.start()
 
-        #Set up the authentication system
-        authtype = conf['site_authtype']
-        config.authmodule = __import__(
-            'lg_authority.authtypes.' + authtype
-            , globals(), locals()
-            , [ '*' ]
-            )
-        config.auth = config.authmodule.setup(conf['site_authtype_conf'])
+        #Set up the authentication system interface
+        config.auth = AuthInterface()
+
+        #Add config groups/users
+        for name,data in config['site_group_list'].items():
+            try:
+                config.auth.group_create(name, data)
+            except: #TODO require specific error type
+                pass
+        for name,data in config['site_user_list'].items():
+            try:
+                config.auth.user_create(name, data)
+            except: #TODO require specific error type
+                pass
 
     def check_auth(self, **kwargs):
         """Check for authenticated state, and setup user slate if applicable.
