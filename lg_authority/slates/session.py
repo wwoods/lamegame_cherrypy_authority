@@ -49,7 +49,7 @@ class Session(Slate):
 
     def get_slate_name(self):
         """Returns the slate name for this session id"""
-        return 'session-' + self.id
+        return self.id
 
     def _test_id(self):
         """Test if we are expired.  If we are, assign a new id"""
