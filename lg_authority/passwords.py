@@ -13,6 +13,15 @@ from .common import *
 from hashlib import sha256 as _sha256
 import hmac
 
+def check_complexity(password):
+    """Checks the password.  Returns a human-readable reason for the
+    password to not be used, or None if the password is ok.
+    """
+
+    if len(password) < 6:
+        return "Password must be at least 6 characters long"
+    return None
+
 def sha256(password, salt_or_compare=None):
     """Returns a password that is salted and hashed with sha256, or
     returns True or False if salt_or_compare is a 2-item list.

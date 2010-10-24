@@ -150,10 +150,15 @@ original destination</a></p>""".format(redirect)
                     if kwargs['password'] != kwargs['password2']:
                         kwargs['error'] = 'Passwords did not match'
                         ok = False
-                    uargs['auth_password'] = {
-                        'date': datetime.datetime.utcnow()
-                        ,'pass': [ 'sha256', passwords.sha256(kwargs['password']) ]
-                        }
+                    error = passwords.check_complexity(kwargs['password'])
+                    if error is not None:
+                        kwargs['error'] = error
+                        ok = False
+                    else:
+                        uargs['auth_password'] = {
+                            'date': datetime.datetime.utcnow()
+                            ,'pass': [ 'sha256', passwords.sha256(kwargs['password']) ]
+                            }
                 
                 if kwargs.get('openid', '') == 'stored':
                     uargs['auth_openid'] = [ cherrypy.session['openid_url'] ]
@@ -224,9 +229,8 @@ original destination</a></p>""".format(redirect)
                 error = 'New passwords do not match'
             else:
                 new_pass = kwargs['newpass']
-                if len(new_pass) < 6:
-                    error = 'Password must be 6 or more characters'
-                else:
+                error = passwords.check_complexity(new_pass)
+                if error is None:
                     config.auth.set_user_password(
                         cherrypy.user.name
                         , [ 'sha256', passwords.sha256(new_pass) ]
