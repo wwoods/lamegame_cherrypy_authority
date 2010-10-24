@@ -4,14 +4,16 @@ from .common import *
 class RamStorage(SlateStorage):
     
     # Class-level objects. Don't rebind these!
-    cache = {}
+    section_cache = {}
 
-    def __init__(self, name, timeout, force_timeout):
+    def __init__(self, section, name, timeout, force_timeout):
+        self.section_name = section
+        self.section = self.section_cache.setdefault(section, {})
         self.name = name
-        if RamStorage.is_expired(name):
-            self.record = self.cache[name] = { 'timeout': timeout }
+        if RamStorage.is_expired(section, name):
+            self.record = self.section[name] = { 'timeout': timeout }
         else:
-            self.record = self.cache[name]
+            self.record = self.section[name]
             if force_timeout:
                 self.record['timeout'] = timeout
 
@@ -32,9 +34,9 @@ class RamStorage(SlateStorage):
         return self.data.get(key, default)
 
     @classmethod
-    def find_slates_with(cls, key, value):
+    def find_slates_with(cls, section, key, value):
         result = []
-        for k,v in cls.cache.items():
+        for k,v in cls.section_cache.get(section, {}).items():
             d = v.get('data', {})
             if value in d.get(key, []):
                 result.append(k)
@@ -57,11 +59,11 @@ class RamStorage(SlateStorage):
         return self.data.values()
     
     def expire(self):
-        self._expire(self.name)
+        self._expire(self.section_name, self)
 
     @classmethod
-    def is_expired(cls, name):
-        obj = cls.cache.get(name, None)
+    def is_expired(cls, section, name):
+        obj = cls.section_cache.get(section, {}).get(name, None)
         if obj is None:
             return True
         if obj['timeout'] is None:
@@ -73,21 +75,23 @@ class RamStorage(SlateStorage):
     @classmethod
     def clean_up(cls):
         """Clean up expired sessions."""
-        for id in list(cls.cache.keys()):
-            if cls.is_expired(id):
-                cls._expire(id)
+        for s,c in list(cls.section_cache.items()):
+            for id in list(c.keys()):
+                if cls.is_expired(s, id):
+                    cls._expire(c, s, c[id])
         log('Cleaned expired sessions')
 
     @classmethod
-    def _expire(cls, id):
+    def _expire(cls, section, slate):
+        """Utility function to expire a certain slate.  
+        slate is the Slate object, section is the section key.
+        """
         try:
-            del cls.cache[id]
+            del cls.section_cache[section][slate.name]
         except KeyError:
             pass
     
     def __len__(self):
         """Return the number of active sessions."""
         return len(self.cache)
-
-
 

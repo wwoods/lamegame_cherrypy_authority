@@ -34,7 +34,7 @@ class Session(Slate):
         #necessary.
         self._test_id()
 
-        Slate.__init__(self, self.get_slate_name(), timeout=self.timeout)
+        Slate.__init__(self, 'session', self.get_slate_name(), timeout=self.timeout)
 
         #The response cookie is set in init_session(), at the bottom of this
         #file.
@@ -61,7 +61,7 @@ class Session(Slate):
             log('Session {0} expired -> {1}'.format(self.originalid, self.id))
 
     def _is_expired(self):
-        return Slate.is_expired(self.get_slate_name())
+        return Slate.is_expired('session', self.get_slate_name())
         
     def _generate_id(self):
         """Return a new session id."""

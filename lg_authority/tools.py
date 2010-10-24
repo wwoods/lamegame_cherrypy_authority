@@ -90,7 +90,7 @@ class AuthTool(cherrypy.Tool):
             cherrypy.user = cherrypy._ThreadLocalProxy('user')
 
         #Setup slate storage medium
-        self.storage_type = conf['site_storage_type']
+        self.storage_type = conf['site_storage']
         self.storage_class = storage.get_storage_class(self.storage_type)
 
         config.storage_class = self.storage_class
@@ -145,7 +145,7 @@ class AuthTool(cherrypy.Tool):
             user.name = user['name'] #Convenience
             user.groups = user['groups'] #Convenience
             user.slate = slates.Slate(
-                kwargs['user_slate_prefix'] + user['name']
+                kwargs['user_slate_section'], user['name']
                 )
 
         #Now validate static permissions, if any

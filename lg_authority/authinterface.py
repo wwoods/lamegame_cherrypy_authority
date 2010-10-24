@@ -14,11 +14,11 @@ class AuthInterface(object):
         if timeout is not missing:
             kwargs = { 'timeout': timeout, 'force_timeout': True }
 
-        sname = config['site_user_prefix'] + username
-        if not Slate.is_expired(sname):
+        sname = 'user-' + username
+        if not Slate.is_expired('user', sname):
             raise AuthError('User already exists')
 
-        user = Slate(sname, **kwargs)
+        user = Slate('user', sname, **kwargs)
         user.update(data)
        
     def user_create_holder(self, username, data):
@@ -30,20 +30,20 @@ class AuthInterface(object):
         if config['site_registration'] != 'admin':
             kwargs['timeout'] = config['site_registration_timeout'] * 60 * 24
             
-        sname = config['site_user_prefix'] + username
-        if not Slate.is_expired(sname):
+        sname = 'user-' + username
+        if not Slate.is_expired('user', sname):
             raise AuthError('Username already taken')
             
-        pname = config['site_user_holder_prefix'] + username
-        if not Slate.is_expired(pname):
+        pname = 'userhold-' + username
+        if not Slate.is_expired('user', pname):
             raise AuthError('Username already taken')
             
-        pslate = Slate(pname, **kwargs)
+        pslate = Slate('user', pname, **kwargs)
         pslate.update(data)
         
     def user_get_holder(self, username):
-        pname = config['site_user_holder_prefix'] + username
-        return Slate.lookup(pname)
+        pname = 'userhold-' + username
+        return Slate.lookup('user', pname)
 
     def get_user_record(self, username):
         """Returns the record for the given username (or None).  Should 
@@ -52,7 +52,7 @@ class AuthInterface(object):
 
         info contains e.g. 'email', 'firstname', 'lastname', etc.
         """
-        slate = Slate.lookup(config['site_user_prefix'] + username)
+        slate = Slate.lookup('user', 'user-' + username)
         if slate is None:
             return None
         return {
@@ -63,11 +63,11 @@ class AuthInterface(object):
     def get_user_from_openid(self, openid_url):
         """Returns the username for the given openid_url, or None.
         """
-        result = config.storage_class.find_slates_with('auth_openid', openid_url)
+        result = config.storage_class.find_slates_with('user', 'auth_openid', openid_url)
         if len(result) == 0:
             return None
         elif len(result) == 1:
-            return result[0][len(config['site_user_prefix']):]
+            return result[0][len('user-'):]
         else:
             raise ValueError('More than one user has this OpenID')
 
@@ -78,14 +78,14 @@ class AuthInterface(object):
         Returns None if the user specified does not have a password to
         authenticate through or does not exist.
         """
-        user = Slate.lookup(config['site_user_prefix'] + username)
+        user = Slate.lookup('user', 'user-' + username)
         return user and user.get('auth_password', None)
 
     def set_user_password(self, username, new_pass):
         """Updates the given user's password.  new_pass is a tuple
         (algorithm, hashed) that is the user's new password.
         """
-        user = Slate.lookup(config['site_user_prefix'] + username)
+        user = Slate.lookup('user', 'user-' + username)
         if user is None:
             raise ValueError('User not found')
         user['auth_password'] = { 'date': datetime.datetime.utcnow(), 'pass': new_pass }
@@ -95,7 +95,7 @@ class AuthInterface(object):
         _get_group_name because get_group_name automatically handles user-,
         any, and auth groups
         """
-        group = Slate.lookup(config['site_group_prefix'] + groupid)
+        group = Slate.lookup('user', 'group-' + groupid)
         if group is not None:
             return group['name']
         return 'Unnamed ({0})'.format(groupid)
@@ -106,11 +106,11 @@ class AuthInterface(object):
         if timeout is not missing:
             kwargs = { 'timeout': timeout, 'force_timeout': True }
 
-        sname = config['site_group_prefix'] + groupid
-        if not Slate.is_expired(sname):
+        sname = 'group-' + groupid
+        if not Slate.is_expired('user', sname):
             raise AuthError('Group already exists')
 
-        group = Slate(sname, **kwargs)
+        group = Slate('user', sname, **kwargs)
         group.update(data)
 
     def login(self, username):

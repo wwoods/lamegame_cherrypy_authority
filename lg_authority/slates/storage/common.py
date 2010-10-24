@@ -7,7 +7,7 @@ class SlateStorage(object): #PY3 , metaclass=cherrypy._AttributeDocstring):
     name = None
     name__doc = "The slate's name"
 
-    def __init__(self, name, timeout, force_timeout):
+    def __init__(self, section, name, timeout, force_timeout):
         """Initializes storage for a slate.  Should clear data if expired,
         and update timestamp / timeout.
 
@@ -35,9 +35,10 @@ class SlateStorage(object): #PY3 , metaclass=cherrypy._AttributeDocstring):
         raise NotImplementedError()
 
     @classmethod
-    def find_slates_with(cls, key, value):
+    def find_slates_with(cls, section, key, value):
         """Return a list of slate names having value in the array keyed by
-        key
+        key.  key must be in site_storage_sections' index_lists parameter
+        for the given section.
         """
         raise NotImplementedError()
         
@@ -87,11 +88,14 @@ class SlateStorage(object): #PY3 , metaclass=cherrypy._AttributeDocstring):
 
     @classmethod
     def clean_up(cls):
-        """Clean up expired sessions (timestamp + timeout < present)"""
+        """Clean up expired sessions (expired < present).  It is recommended
+        that drivers keep track of sections that have been used and clean
+        those, ignoring unused sections.
+        """
         raise NotImplementedError()
 
     @classmethod
-    def is_expired(cls, name):
+    def is_expired(cls, section, name):
         """Return True if the given slate is expired or does not exist"""
         raise NotImplementedError()
 

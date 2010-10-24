@@ -25,7 +25,7 @@ config.update({
     'site_key': 'abc123o2qh3otin;oiH#*@(TY(#*Th:T*:(@#HTntb982#HN(:@#*TBH:@#(*THioihI#HOIH%oihio3@H%IOH#@%I)(!*@Y%+(+!@H%~`un23gkh'
     #Site encryption key for passwords.  Should be more than 60 chars.
     ,
-    'site_storage_type': 'ram'
+    'site_storage': 'ram'
     #The storage backend for the auth framework.  Essentially, we use 
     #a namespaced key-value store with expiration times on the namespaces.
     ,
@@ -33,29 +33,15 @@ config.update({
         }
     #Configuration options for the specified site storage.
     ,
-    'site_storage_shards': [
-        ('user-', '_users')
-        , ('group-', '_users')
-        , ('session-', '_sessions')
-        , ('', '_store')
-        ]
-    #Store different slates in different sections.  Useful for
-    #keeping user data (which is mostly permanent) separate from
-    #session data.
-    #A blank entry ('') will prevent the main storage table/collection
-    #from being created at all; it is just used as a common name root.
-    #This configuration item is useless when using RAM storage.
+    'site_storage_sections': {
+        'user': { 'index_lists':  [ 'auth_openid', 'groups' ] }
+        }
+    #Configuration items for various sections of slates.
+    #Most sections do not need any options, but if you want anything
+    #indexed, then this is where you specify it.
     ,
     'site_storage_clean_freq': 60
     #Minutes between cleaning up expired site storage.
-    ,
-    'site_user_prefix': 'user-'
-    #Prefix for user namespaces in storage system.  If you change, be sure to
-    #change site_storage_shards too.
-    ,
-    'site_user_holder_prefix': 'userreg-'
-    #Prefix for user holders in storage system.  These are reserved, but not
-    #active, user accounts.
     ,
     'site_user_list': {
         'admin': {
@@ -65,10 +51,6 @@ config.update({
             }
         }
     #User records to create if they do not already exist
-    ,
-    'site_group_prefix': 'group-'
-    #Prefix for group namespaces in storage system.  If you change, be sure
-    #to look at site_storage_shards as well.
     ,
     'site_group_list': {
         'admin': { 'name': 'Administrators' }
@@ -111,10 +93,10 @@ config.update({
     #If you use an app that does this, feel free to set its specific 
     #configuration to override_sessions: False
     ,
-    'user_slate_prefix': 'uslate-'
+    'user_slate_section': 'userslate'
     #The prefix for named slates for each user (only applicable when using
     #lamegame_cherrypy_slates).  Can be overridden at different paths to 
-    #"isolate" user storage.  Don't use site_user_prefix!
+    #"isolate" user storage.  Don't use any of the existing ones.
     ,
     'groups': [ 'any' ]
     #Static groups allowed to access the resource.  If the FIRST ELEMENT

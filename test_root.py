@@ -14,7 +14,7 @@ class TestAlias(object):
 
     @cherrypy.expose
     def index(self):
-        return "You must be logged in to see this, {user.groups}!".format(user=cherrypy.user)
+        return "You must be logged in to see this, {user.name}!".format(user=cherrypy.user)
 
     @cherrypy.expose
     @lg_authority.groups('None')
@@ -27,6 +27,11 @@ cherrypy.config.update({
     , 'server.socket_port': 8081 
     , 'tools.lg_authority.on': True
     , 'tools.lg_authority.site_debug': True
+    , 'tools.lg_authority.site_storage': 'mongodb'
+    , 'tools.lg_authority.site_storage_conf': {
+        'db': 'test'
+        ,'collection_base': 'test'
+        }
     })
 cherrypy.engine.start()
 cherrypy.engine.block()

@@ -46,35 +46,36 @@ class Slate(object): #PY3 , metaclass=cherrypy._AttributeDocstrings):
     clean_freq = 60
     clean_freq__doc = "The poll rate for expired slate cleanup in minutes."
  
-    def __init__(self, name, timeout=missing, force_timeout=False):
+    def __init__(self, section, name, timeout=missing, force_timeout=False):
         """Initializes the Slate, and wipes expired data if necessary.
         Also updates the Slate's Expiration date if needed.
 
         Will only update the Slate's timeout if either the slate is new (or
         previously expired), or the force_timeout parameter is set to True.
         """
+        self.section = section
         self.name = name
         self._data = {}
         
         if not timeout is missing:
             self.timeout = timeout
 
-        self.storage = config.storage_class(self.name, self.timeout, force_timeout)
+        self.storage = config.storage_class(self.section, self.name, self.timeout, force_timeout)
         log('Slate loaded: {0}'.format(repr(self.storage)))
 
     @classmethod 
-    def lookup(cls, name):
+    def lookup(cls, section, name):
         """Fetch the specified slate, but if it does not exist or is expired,
         return None instead of creating it.
         """
-        if cls.is_expired(name):
+        if cls.is_expired(section, name):
             return None
-        return Slate(name)
+        return Slate(section, name)
 
     @classmethod
-    def is_expired(cls, id):
+    def is_expired(cls, section, name):
         """Returns True if the given Slate identifier is expired or non-existant."""
-        return config.storage_class.is_expired(id)
+        return config.storage_class.is_expired(section, name)
 
     def expire(self):
         """Delete stored session data."""
