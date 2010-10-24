@@ -79,6 +79,12 @@ config.update({
     #the time window that the user has to receive the activation email and
     #activate their account.  For admin, this value IS NOT USED.
     ,
+    'site_registration_recaptcha_publickey': None
+    #Your public key for recaptcha, or None to disable recaptcha
+    ,
+    'site_registration_recaptcha_privatekey': None
+    #Your private key for recaptcha
+    ,
     'site_debug': True
     #Print debug messages for lg_authority?  True/False
     ,

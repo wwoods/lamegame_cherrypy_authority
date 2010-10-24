@@ -32,6 +32,8 @@ cherrypy.config.update({
         'db': 'test'
         ,'collection_base': 'test'
         }
+    , 'tools.lg_authority.site_registration_recaptcha_publickey': '6Le8H74SAAAAABOZXhtQr9Ld3WrWn1bnEyp19JFC'
+    , 'tools.lg_authority.site_registration_recaptcha_privatekey': '6Le8H74SAAAAAMHdM9B_8bmvFvkJbFqn3Y6WYcwD'
     })
 cherrypy.engine.start()
 cherrypy.engine.block()

@@ -110,13 +110,16 @@ New accounts are not allowed.  Contact administrator if you need access.
         
     @cherrypy.expose
     def new_account_ok(self, redirect=''):
-        redir_text = redirect and """<p>After your account has been 
-confirmed, <a href="{0}">click here to continue to your original 
-destination</p>""".format(redirect)
+        #TODO - replace redir_wait with registration method's message.
+        redir_wait = """<p>Registration complete.</p>"""
+        redir_link = ''
+        if redirect:
+            redir_link = """<p><a href="{0}">Click here to continue to your
+original destination</a></p>""".format(redirect)
 
-        return """<div class="lg_auth_form"><p>Registration complete.</p>
-{redirect}
-</div>""".format(redirect=redir_text)
+        redir_text = redir_wait + redir_link
+
+        return """<div class="lg_auth_form">{redirect}</div>""".format(redirect=redir_text)
     
     @cherrypy.expose
     def new_account(self, **kwargs):
@@ -124,8 +127,22 @@ destination</p>""".format(redirect)
             return """<div class="lg_auth_form">Registration is not available for this site.</div>"""
     
         if cherrypy.request.method.upper() == 'POST':
-            #TODO - check captcha
             try:
+                #check captcha
+                pubkey = config['site_registration_recaptcha_publickey']
+                if pubkey is not None:
+                    privkey = config['site_registration_recaptcha_privatekey']
+                    from recaptcha.client import captcha
+                    result = captcha.submit(
+                        kwargs['recaptcha_challenge_field']
+                        ,kwargs['recaptcha_response_field']
+                        ,privkey
+                        ,cherrypy.request.remote.ip
+                        )
+                    log('Recaptcha verification: ' + str(result.is_valid))
+                    if not result.is_valid:
+                        raise AuthError(result.error_code)
+
                 uname = kwargs['username']
                 uargs = { 'groups': [] }
                 ok = True
@@ -173,8 +190,12 @@ destination</p>""".format(redirect)
         reg_forms = []
         template_args['registration_forms'] = ''.join(reg_forms)
         
-        #TODO - Captcha form
+        #Captcha form
         template_args['captcha_form'] = ''
+        pubkey = config['site_registration_recaptcha_publickey']
+        if pubkey is not None:
+            from recaptcha.client import captcha
+            template_args['captcha_form'] = """<tr><td colspan="2">{captcha}</td></tr>""".format(captcha=captcha.displayhtml(pubkey))
 
         return """<div class="lg_auth_form lg_auth_new_account">
 <span style="color:#ff0000;" class="lg_auth_error">{error}</span>
