@@ -7,6 +7,9 @@ def log(message):
         cherrypy.log(message, 'LG_AUTHORITY')
 log.enabled = False
 
+class AuthError(Exception):
+    pass
+
 class ConfigDict(dict):
     """Holds all configuration items.  Its own class so that
     it may hold flags as well.
@@ -50,9 +53,13 @@ config.update({
     #Prefix for user namespaces in storage system.  If you change, be sure to
     #change site_storage_shards too.
     ,
+    'site_user_holder_prefix': 'userreg-'
+    #Prefix for user holders in storage system.  These are reserved, but not
+    #active, user accounts.
+    ,
     'site_user_list': {
         'admin': {
-            'auth_password': { 'date': datetime.datetime.utcnow(), 'pass': ( 'sha256', ['bff74028f285748241375d1c9c7f9b6e85fd3900edf8e601a78f7f84d848b42e', 'admin'] ) }
+            'auth_password': { 'date': datetime.datetime.utcnow(), 'pass': [ 'sha256', ['bff74028f285748241375d1c9c7f9b6e85fd3900edf8e601a78f7f84d848b42e', 'admin'] ] }
             ,'auth_openid': []
             ,'groups': [ 'admin' ]
             }
@@ -69,17 +76,26 @@ config.update({
     #Group records to create if they do not already exist.  
     #any, auth, and user- groups are automatic.
     ,
-    'site_registration': 'admin'
-    #The required USER-SIDE registration mechanism.  Common values are:
+    'site_registration': 'open'
+    #The required USER-SIDE registration mechanism.  All registration mechanisms use
+    #recaptcha if it is installed.
+    #Accepted values are:
+    #open - Anyone passing recaptcha may make a valid account, no confirmation
+    #    is necessary.
     #email - Email based registration (optionally w/ recaptcha).  
     #    See site_email_ settings.
-    #recaptcha - A recaptcha at account creation is enough
     #admin - A user will define their account (optionally with recaptcha), but 
     #    an admin must sign off on it.
     #None - Users will be redirected to the login page if their openID
     #    fails, and the New Account link will be replaced with text asking
     #    users who feel they should have permission to contact the 
     #    administrator.
+    ,
+    'site_registration_timeout': 7
+    #The number of days between which a registration request is placed and 
+    #expires.  For open or None, this is irrelevant.  For email, it refers to
+    #the time window that the user has to receive the activation email and
+    #activate their account.  For admin, this value IS NOT USED.
     ,
     'site_debug': True
     #Print debug messages for lg_authority?  True/False

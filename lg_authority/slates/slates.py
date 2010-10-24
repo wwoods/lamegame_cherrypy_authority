@@ -12,7 +12,10 @@ Call cherrypy.session.expire() to force a session to expire.
 
 import datetime
 import os
-import cPickle as pickle
+try:
+  import cPickle as pickle
+except ImportError:
+  import pickle
 import random
 import time
 import threading

@@ -1,13 +1,14 @@
 """The root for lg_authority web actions"""
 
 import os
+import datetime
 
 import cherrypy
 
 from .common import *
-from adminroot import AdminRoot
-from openidconsumer import OpenIdConsumerRoot
-import passwords
+from .adminroot import AdminRoot
+from .openidconsumer import OpenIdConsumerRoot
+from . import passwords
 
 @groups('any')
 class AuthRoot(object):
@@ -106,16 +107,61 @@ New accounts are not allowed.  Contact administrator if you need access.
         if redirect:
             raise cherrypy.HTTPRedirect(redirect)
         return "You have logged out."
+        
+    @cherrypy.expose
+    def new_account_ok(self, redirect=''):
+        redir_text = redirect and """<p>After your account has been 
+confirmed, <a href="{0}">click here to continue to your original 
+destination</p>""".format(redirect)
+
+        return """<div class="lg_auth_form"><p>Registration complete.</p>
+{redirect}
+</div>""".format(redirect=redir_text)
     
     @cherrypy.expose
     def new_account(self, **kwargs):
+        if config['site_registration'] is None:
+            return """<div class="lg_auth_form">Registration is not available for this site.</div>"""
+    
         if cherrypy.request.method.upper() == 'POST':
-            pass #TODO - pass off to registration method.
+            #TODO - check captcha
+            try:
+                uname = kwargs['username']
+                uargs = { 'groups': [] }
+                ok = True
+                if 'password' in kwargs:
+                    if kwargs['password'] != kwargs['password2']:
+                        kwargs['error'] = 'Passwords did not match'
+                        ok = False
+                    uargs['auth_password'] = {
+                        'date': datetime.datetime.utcnow()
+                        ,'pass': [ 'sha256', passwords.sha256(kwargs['password']) ]
+                        }
+                
+                if kwargs.get('openid', '') == 'stored':
+                    uargs['auth_openid'] = [ cherrypy.session['openid_url'] ]
+                
+                if ok:
+                    if config['site_registration'] != 'open':
+                        config.auth.user_create_holder(uname, uargs)
+                        #TODO - Registration forward
+                    else:
+                        config.auth.user_create(uname, uargs)
+                    raise cherrypy.HTTPRedirect(
+                        url_add_parms(
+                            'new_account_ok'
+                            , { 'redirect': kwargs.get('redirect', '') }
+                            )
+                        )
+            except AuthError as e:
+                kwargs['error'] = e
 
         template_args = { 
             'openid': kwargs.get('openid', '') 
             ,'password_form': ''
             ,'error': kwargs.get('error', '')
+            ,'username': kwargs.get('username', '')
+            ,'redirect': kwargs.get('redirect', '')
             }
         if kwargs.get('openid') != 'stored':
             template_args['password_form'] = """
@@ -126,16 +172,21 @@ New accounts are not allowed.  Contact administrator if you need access.
         #TODO - Go through registration providers, and ask for fields
         reg_forms = []
         template_args['registration_forms'] = ''.join(reg_forms)
+        
+        #TODO - Captcha form
+        template_args['captcha_form'] = ''
 
         return """<div class="lg_auth_form lg_auth_new_account">
 <span style="color:#ff0000;" class="lg_auth_error">{error}</span>
 <form method="POST" action="new_account">
   <h1>New User Registration</h1>
+  <input type="hidden" name="redirect" value="{redirect}" />
   <input type="hidden" name="openid" value="{openid}" />
   <table>
-    <tr><td>Username</td><td><input type="text" name="username" /></td></tr>
+    <tr><td>Username</td><td><input type="text" name="username" value="{username}" /></td></tr>
     {password_form}
     {registration_forms}
+    {captcha_form}
     <tr><td><input type="submit" value="Submit" /></td></tr>
   </table>
 </form>

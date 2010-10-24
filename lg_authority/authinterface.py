@@ -16,10 +16,34 @@ class AuthInterface(object):
 
         sname = config['site_user_prefix'] + username
         if not Slate.is_expired(sname):
-            raise Exception('User already exists')
+            raise AuthError('User already exists')
 
         user = Slate(sname, **kwargs)
         user.update(data)
+       
+    def user_create_holder(self, username, data):
+        """Inserts a placeholder for the given username.  Raises an AuthError
+        if the username specified is already an existing user or placeholder
+        user.
+        """
+        kwargs = { 'timeout': None }
+        if config['site_registration'] != 'admin':
+            kwargs['timeout'] = config['site_registration_timeout'] * 60 * 24
+            
+        sname = config['site_user_prefix'] + username
+        if not Slate.is_expired(sname):
+            raise AuthError('Username already taken')
+            
+        pname = config['site_user_holder_prefix'] + username
+        if not Slate.is_expired(pname):
+            raise AuthError('Username already taken')
+            
+        pslate = Slate(pname, **kwargs)
+        pslate.update(data)
+        
+    def user_get_holder(self, username):
+        pname = config['site_user_holder_prefix'] + username
+        return Slate.lookup(pname)
 
     def get_user_record(self, username):
         """Returns the record for the given username (or None).  Should 
@@ -84,7 +108,7 @@ class AuthInterface(object):
 
         sname = config['site_group_prefix'] + groupid
         if not Slate.is_expired(sname):
-            raise Exception('Group already exists')
+            raise AuthError('Group already exists')
 
         group = Slate(sname, **kwargs)
         group.update(data)

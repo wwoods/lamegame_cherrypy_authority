@@ -3,8 +3,9 @@ import cherrypy
 from .common import *
 
 from . import slates
-import slates.storage
+from .slates import storage
 from .authinterface import AuthInterface
+from . import registration
 
 class AuthTool(cherrypy.Tool):
     """Authentication tool for CherryPy.  Called with various parameters
@@ -90,7 +91,7 @@ class AuthTool(cherrypy.Tool):
 
         #Setup slate storage medium
         self.storage_type = conf['site_storage_type']
-        self.storage_class = slates.storage.get_storage_class(self.storage_type)
+        self.storage_class = storage.get_storage_class(self.storage_type)
 
         config.storage_class = self.storage_class
         log('Found: ' + str(config.storage_class))
@@ -119,13 +120,17 @@ class AuthTool(cherrypy.Tool):
         for name,data in config['site_group_list'].items():
             try:
                 config.auth.group_create(name, data)
-            except: #TODO require specific error type
+            except AuthError:
                 pass
         for name,data in config['site_user_list'].items():
             try:
                 config.auth.user_create(name, data)
-            except: #TODO require specific error type
+            except AuthError:
                 pass
+                
+        #Set up registration mechanism
+        reg_method = config['site_registration']
+        #TODO registration method stuff...
 
     def check_auth(self, **kwargs):
         """Check for authenticated state, and setup user slate if applicable.

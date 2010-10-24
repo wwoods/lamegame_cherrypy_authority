@@ -12,6 +12,9 @@ except ImportError:
         """The OpenIdConsumerRoot when python-openid is not installed OR lg_slates is not installed."""
 
         supported = False
+        
+        def __init__(self, *args, **kwargs):
+            pass
 
         @cherrypy.expose
         def default(*args, **kwargs):
