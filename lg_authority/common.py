@@ -99,6 +99,9 @@ config.update({
         ,'from': 'Site Registration <test@example.com>'
         ,'smtpserver': '127.0.0.1'
         ,'smtpport': 25
+        ,'smtpssl': False
+        ,'smtpuser': None
+        ,'smtppass': None
         }
     #Config items for the specific 
     ,

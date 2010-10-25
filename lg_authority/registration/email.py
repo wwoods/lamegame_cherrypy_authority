@@ -57,8 +57,17 @@ Subject: {subject}
             )
 
         server = self.conf.get('smtpserver')
-        s = smtplib.SMTP(server, self.conf.get('smtpport') or 25)
-        s.sendmail(frm, email, message)
+        port = self.conf.get('smtpport') or 25
+        use_ssl = self.conf.get('smtpssl')
+        if use_ssl:
+            s = smtplib.SMTP_SSL(server, port)
+        else:
+            s = smtplib.SMTP(server, port)
+        user = self.conf.get('smtpuser')
+        if user:
+            password = self.conf.get('smtppass')
+            s.login(user, password)
+        s.sendmail(frm, [email], message)
         s.quit()
 
         #Email sent OK, put in the holder

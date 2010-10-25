@@ -67,6 +67,7 @@ class AuthInterface(object):
 
         user = Slate('user', uname)
         user.update(uargs)
+        holder.expire()
 
     def get_user_record(self, username):
         """Returns the record for the given username (or None).  Should 
