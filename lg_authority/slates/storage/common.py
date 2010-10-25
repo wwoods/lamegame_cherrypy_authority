@@ -2,7 +2,9 @@
 from ...common import *
 
 class SlateStorage(object): #PY3 , metaclass=cherrypy._AttributeDocstring):
-    """The base class for slate storage types"""
+    """The base class for slate storage types.  These should only use the
+    most basic library available for the given storage type.
+    """
 
     name = None
     name__doc = "The slate's name"

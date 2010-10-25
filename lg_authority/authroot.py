@@ -109,9 +109,8 @@ New accounts are not allowed.  Contact administrator if you need access.
         return "You have logged out."
         
     @cherrypy.expose
-    def new_account_ok(self, redirect=''):
-        #TODO - replace redir_wait with registration method's message.
-        redir_wait = """<p>Registration complete.</p>"""
+    def new_account_ok(self, username, redirect=''):
+        redir_wait = config.registrar.new_account_ok(username)
         redir_link = ''
         if redirect:
             redir_link = """<p><a href="{0}">Click here to continue to your
@@ -129,9 +128,10 @@ original destination</a></p>""".format(redirect)
         if cherrypy.request.method.upper() == 'POST':
             try:
                 #check captcha
-                pubkey = config['site_registration_recaptcha_publickey']
+                keys = config['site_registration_recaptcha'] or {}
+                pubkey = keys.get('public')
                 if pubkey is not None:
-                    privkey = config['site_registration_recaptcha_privatekey']
+                    privkey = keys.get('private')
                     from recaptcha.client import captcha
                     result = captcha.submit(
                         kwargs['recaptcha_challenge_field']
@@ -146,7 +146,11 @@ original destination</a></p>""".format(redirect)
                 uname = kwargs['username']
                 uargs = { 'groups': [] }
                 ok = True
-                if 'password' in kwargs:
+                #Intermediate (not final) username existence check
+                if ok and config.auth.user_exists(uname):
+                    kwargs['error'] = 'Username already taken'
+                    ok = False
+                if ok and 'password' in kwargs:
                     if kwargs['password'] != kwargs['password2']:
                         kwargs['error'] = 'Passwords did not match'
                         ok = False
@@ -160,19 +164,18 @@ original destination</a></p>""".format(redirect)
                             ,'pass': [ 'sha256', passwords.sha256(kwargs['password']) ]
                             }
                 
-                if kwargs.get('openid', '') == 'stored':
+                if ok and kwargs.get('openid', '') == 'stored':
                     uargs['auth_openid'] = [ cherrypy.session['openid_url'] ]
                 
                 if ok:
-                    if config['site_registration'] != 'open':
-                        config.auth.user_create_holder(uname, uargs)
-                        #TODO - Registration forward
-                    else:
-                        config.auth.user_create(uname, uargs)
+                    config.registrar.process_new_user(uname, uargs, kwargs)
                     raise cherrypy.HTTPRedirect(
                         url_add_parms(
                             'new_account_ok'
-                            , { 'redirect': kwargs.get('redirect', '') }
+                            , { 
+                                'username': uname
+                                ,'redirect': kwargs.get('redirect', '') 
+                                }
                             )
                         )
             except AuthError as e:
@@ -191,13 +194,15 @@ original destination</a></p>""".format(redirect)
 <tr><td>Password (again)</td><td><input type="password" name="password2" /></td></tr>
 """
 
-        #TODO - Go through registration providers, and ask for fields
+        #Go through registration providers, and ask for fields
         reg_forms = []
+        reg_forms.append(config.registrar.new_user_fields())
         template_args['registration_forms'] = ''.join(reg_forms)
         
         #Captcha form
         template_args['captcha_form'] = ''
-        pubkey = config['site_registration_recaptcha_publickey']
+        keys = config['site_registration_recaptcha'] or {}
+        pubkey = keys.get('public')
         if pubkey is not None:
             from recaptcha.client import captcha
             template_args['captcha_form'] = """<tr><td colspan="2">{captcha}</td></tr>""".format(captcha=captcha.displayhtml(pubkey))
@@ -217,6 +222,10 @@ original destination</a></p>""".format(redirect)
   </table>
 </form>
 </div>""".format(**template_args)
+
+    @cherrypy.expose
+    def reg_response_link(self, **kwargs):
+        return config.registrar.response_link(**kwargs)
 
     @cherrypy.expose
     @groups('auth')

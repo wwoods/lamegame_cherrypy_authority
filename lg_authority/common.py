@@ -1,4 +1,6 @@
 
+import re
+
 import datetime
 import cherrypy
 
@@ -6,6 +8,24 @@ def log(message):
     if log.enabled:
         cherrypy.log(message, 'LG_AUTHORITY')
 log.enabled = False
+
+def get_site_name():
+    """Returns the site domain for the current cherrypy request."""
+    name_match = get_site_name.namere.match(cherrypy.request.base)
+    log('Base: ' + cherrypy.request.base)
+    return name_match.group(1)
+get_site_name.namere = re.compile('^[^:]+://([^/:]*)')
+
+def email_reg_default_subject(username):
+    return """{site} - Registration""".format(site=get_site_name())
+
+def email_reg_default_body(username):
+    return """You have requested registration as {user} at {site}.""".format(
+        user=username
+        ,site=get_site_name()
+        )
+
+#Slate is set by slates
 
 class AuthError(Exception):
     pass
@@ -34,7 +54,7 @@ config.update({
     #Configuration options for the specified site storage.
     ,
     'site_storage_sections': {
-        'user': { 'index_lists':  [ 'auth_openid', 'groups' ] }
+        'user': { 'index_lists':  [ 'auth_openid', 'groups', 'emails' ] }
         }
     #Configuration items for various sections of slates.
     #Most sections do not need any options, but if you want anything
@@ -58,7 +78,7 @@ config.update({
     #Group records to create if they do not already exist.  
     #any, auth, and user- groups are automatic.
     ,
-    'site_registration': 'open'
+    'site_registration': 'email'
     #The required USER-SIDE registration mechanism.  All registration mechanisms use
     #recaptcha if it is installed.
     #Accepted values are:
@@ -73,17 +93,26 @@ config.update({
     #    users who feel they should have permission to contact the 
     #    administrator.
     ,
-    'site_registration_timeout': 7
+    'site_registration_conf': {
+        'subject': email_reg_default_subject
+        ,'body': email_reg_default_body
+        ,'from': 'Site Registration <test@example.com>'
+        ,'smtpserver': '127.0.0.1'
+        ,'smtpport': 25
+        }
+    #Config items for the specific 
+    ,
+    'site_registration_timeout': 2
     #The number of days between which a registration request is placed and 
     #expires.  For open or None, this is irrelevant.  For email, it refers to
     #the time window that the user has to receive the activation email and
     #activate their account.  For admin, this value IS NOT USED.
     ,
-    'site_registration_recaptcha_publickey': None
-    #Your public key for recaptcha, or None to disable recaptcha
-    ,
-    'site_registration_recaptcha_privatekey': None
-    #Your private key for recaptcha
+    'site_registration_recaptcha': {
+        'public': None
+        ,'private': None
+        }
+    #Your public and private keys for recaptcha, or None to disable recaptcha
     ,
     'site_debug': True
     #Print debug messages for lg_authority?  True/False

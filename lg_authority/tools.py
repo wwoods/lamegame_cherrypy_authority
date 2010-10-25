@@ -130,7 +130,11 @@ class AuthTool(cherrypy.Tool):
                 
         #Set up registration mechanism
         reg_method = config['site_registration']
-        #TODO registration method stuff...
+        if reg_method is not None:
+            reg_conf = config['site_registration_conf']
+            config.registrar = registration.get_registrar(reg_method)(reg_conf)
+        else:
+            config.registrar = None
 
     def check_auth(self, **kwargs):
         """Check for authenticated state, and setup user slate if applicable.

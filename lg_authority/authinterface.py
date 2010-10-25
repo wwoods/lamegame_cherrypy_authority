@@ -27,7 +27,7 @@ class AuthInterface(object):
         user.
         """
         kwargs = { 'timeout': None }
-        if config['site_registration'] != 'admin':
+        if config['site_registration_timeout'] != None:
             kwargs['timeout'] = config['site_registration_timeout'] * 60 * 24
             
         sname = 'user-' + username
@@ -40,10 +40,33 @@ class AuthInterface(object):
             
         pslate = Slate('user', pname, **kwargs)
         pslate.update(data)
-        
+
+    def user_exists(self, username):
+        userrec = 'user-' + username
+        userhold = 'userhold-' + username
+
+        if not Slate.is_expired('user', userrec):
+            return True
+        if not Slate.is_expired('user', userhold):
+            return True
+        return False
+
     def user_get_holder(self, username):
         pname = 'userhold-' + username
         return Slate.lookup('user', pname)
+
+    def user_promote_holder(self, holder):
+        """Promotes the passed holder slate to a full user"""
+        uname = 'user-' + holder.name[len('userhold-'):]
+        uargs = {}
+        for k,v in holder.items():
+            uargs[k] = v
+
+        if not Slate.is_expired('user', uname):
+            raise AuthError('User already activated')
+
+        user = Slate('user', uname)
+        user.update(uargs)
 
     def get_user_record(self, username):
         """Returns the record for the given username (or None).  Should 

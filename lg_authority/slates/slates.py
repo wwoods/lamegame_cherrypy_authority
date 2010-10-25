@@ -77,6 +77,14 @@ class Slate(object): #PY3 , metaclass=cherrypy._AttributeDocstrings):
         """Returns True if the given Slate identifier is expired or non-existant."""
         return config.storage_class.is_expired(section, name)
 
+    @classmethod
+    def find_slates_with(cls, section, key, value):
+        """Return a list of slate names having value in the array keyed by
+        key.  key must be in site_storage_sections' index_lists parameter
+        for the given section.
+        """
+        return config.storage_class.find_slates_with(section, key, value)
+
     def expire(self):
         """Delete stored session data."""
         self.storage.expire()

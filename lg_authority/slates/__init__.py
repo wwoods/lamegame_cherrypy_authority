@@ -13,3 +13,6 @@ from ..common import *
 from .slates import Slate
 from .session import init_session
 
+#Seed global config with Slate variable
+config.Slate = Slate
+

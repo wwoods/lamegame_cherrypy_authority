@@ -154,7 +154,7 @@ class MongodbStorage(SlateStorage):
             return result
 
         result = cls.db[cls.collection_base + '_' + section]
-        result.ensure_index([ ('name', 1) ], background=True)
+        result.ensure_index([ ('name', 1) ], unique=True, background=True)
         result.ensure_index([ ('expire', 1) ], background=True)
 
         options = config['site_storage_sections'].get(section, {})
