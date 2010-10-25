@@ -199,7 +199,9 @@ def url_add_parms(base, qs):
 
 # Basic rejection function calls
 def deny_access():
-    """Unconditionally denies access to the current request."""
+    """Denies access to the current request.  Raises an HTTPRedirect or
+    HTTPError depending on the user's login state.
+    """
     denial_key = 'deny_page_anon'
     if cherrypy.serving.user is not None:
         denial_key = 'deny_page_auth'

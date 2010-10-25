@@ -13,13 +13,18 @@ class TestAlias(object):
     auth = lg_authority.AuthRoot()
 
     @cherrypy.expose
+    @lg_authority.groups('any')
     def index(self):
-        return "You must be logged in to see this, {user.name}!".format(user=cherrypy.user)
+        return "Anyone may see this page"
 
     @cherrypy.expose
     @lg_authority.groups('None')
     def deny(self):
         return "You can't see this or else you're cheating!"
+
+    @cherrypy.expose
+    def authonly(self):
+        return "If you see this, you're logged in as {user.name}".format(user=cherrypy.user)
 
 cherrypy.tree.mount(TestAlias(), '/')
 cherrypy.config.update({ 
