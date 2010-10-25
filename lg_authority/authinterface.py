@@ -91,7 +91,10 @@ class AuthInterface(object):
         if len(result) == 0:
             return None
         elif len(result) == 1:
-            return result[0][len('user-'):]
+            if result[0].startswith('user-'):
+                return result[0][len('user-'):]
+            #Probably an inactive account.
+            return None
         else:
             raise ValueError('More than one user has this OpenID')
 
