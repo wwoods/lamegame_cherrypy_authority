@@ -143,7 +143,7 @@ original destination</a></p>""".format(redirect)
                     if not result.is_valid:
                         raise AuthError(result.error_code)
 
-                uname = kwargs['username']
+                uname = kwargs['username'].lower()
                 uargs = { 'groups': [] }
                 ok = True
                 #Intermediate (not final) username existence check
@@ -265,6 +265,8 @@ original destination</a></p>""".format(redirect)
     @cherrypy.expose
     @method_filter(methods=['POST'])
     def login_password(self, username, password, redirect=None):
+        #Case insensitive usernames
+        username = username.lower()
         if config.auth.test_password(username, password):
             user = config.auth.login(username)
             self.login_redirect(user, redirect)
