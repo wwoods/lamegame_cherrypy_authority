@@ -3,19 +3,19 @@
 import cherrypy
 import lg_authority
 
-lg_authority.tool.register_as('auth')
+#lg_authority.tool.register_as('auth')
 
 #Test that register_as works as expected
-@cherrypy.config(**{'auth.groups': ['auth']})
+#@cherrypy.config(**{'auth.groups': ['auth']})
+@cherrypy.config(**{'tools.lg_authority.groups': ['auth']})
 class TestAlias(object):
     #We could mount this separately,  but embedded does more interesting
     #things with config.
     auth = lg_authority.AuthRoot()
 
     @cherrypy.expose
-    @lg_authority.groups('any')
     def index(self):
-        return "Anyone may see this page"
+        return "You're logged in as {user}!".format(user=cherrypy.user.name)
 
     @cherrypy.expose
     @lg_authority.groups('None')
@@ -23,8 +23,9 @@ class TestAlias(object):
         return "You can't see this or else you're cheating!"
 
     @cherrypy.expose
-    def authonly(self):
-        return "If you see this, you're logged in as {user.name}".format(user=cherrypy.user)
+    @lg_authority.groups('any')
+    def public(self):
+        return "Anyone can see this!"
 
 cherrypy.tree.mount(TestAlias(), '/')
 cherrypy.config.update({ 
@@ -46,6 +47,7 @@ try:
     from site_local import *
 except ImportError:
     pass
+
 cherrypy.engine.start()
 cherrypy.engine.block()
 

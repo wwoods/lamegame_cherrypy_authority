@@ -43,6 +43,17 @@ class RamStorage(SlateStorage):
 
         return result
 
+    @classmethod
+    def find_slates_between(cls, section, start, end, limit, skip):
+        sec = cls.section_cache.get(section, {}).keys()
+        sec = [ s for s in sec if start <= s and s <= end ]
+        sec.sort()
+        if skip is None:
+            skip = 0
+        if limit is None:
+            limit = len(sec) - skip
+        return sec[skip:skip + limit]
+
     def pop(self, key, default):
         return self.data.pop(key, default)
 

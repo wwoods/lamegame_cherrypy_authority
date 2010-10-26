@@ -43,9 +43,6 @@ class Slate(object): #PY3 , metaclass=cherrypy._AttributeDocstrings):
     storage = None
     storage__doc = "Storage instance for this slate"
     
-    clean_freq = 60
-    clean_freq__doc = "The poll rate for expired slate cleanup in minutes."
- 
     def __init__(self, section, name, timeout=missing, force_timeout=False):
         """Initializes the Slate, and wipes expired data if necessary.
         Also updates the Slate's Expiration date if needed.
@@ -80,10 +77,19 @@ class Slate(object): #PY3 , metaclass=cherrypy._AttributeDocstrings):
     @classmethod
     def find_slates_with(cls, section, key, value):
         """Return a list of slate names having value in the array keyed by
-        key.  key must be in site_storage_sections' index_lists parameter
-        for the given section.
+        key.  key must be in site_storage_sections_{section}'s index_lists 
+        parameter for the given section.
         """
         return config.storage_class.find_slates_with(section, key, value)
+
+    @classmethod
+    def find_slates_between(cls, section, start, end, limit=None, skip=None):
+        """Return a list of slate names between start and end.  Optionally
+        limit the number of results returned and skip the first X.
+        """
+        return config.storage_class.find_slates_between(
+            section, start, end, limit, skip
+            )
 
     def expire(self):
         """Delete stored session data."""
@@ -136,4 +142,8 @@ class Slate(object): #PY3 , metaclass=cherrypy._AttributeDocstrings):
     def values(self):
         """D.values() -> list of D's values."""
         return self.storage.values()
+
+    def todict(self):
+        """Slate -> dict"""
+        return dict(self.storage.items())
 

@@ -30,26 +30,53 @@ class AuthTool(cherrypy.Tool):
 
     def register_as(self, name):
         """Adds an alias for this tool; may be called multiple times.
+
+        MUST be called BEFORE any config is set to take effect.
+
         e.g. cherrypy.tools.lg_authority.register_as('auth') allows things 
         like auth.groups instead of tools.lg_authority.groups in your 
         config files.
         """
+        raise NotImplementedError()
         self.aliases.append(name)
+        def gen_aliaser(k, v):
+            cherrypy.config['tools.lg_authority.' + k] = v
+        def req_handler():
+            post_conf = getattr(cherrypy.serving, 'lg_authority_aliased', None)
+            if post_conf is not None:
+                log('Applying: {0}'.format(post_conf))
+                cherrypy.request.namespaces(post_conf)
+                log('New config: {0}'.format(cherrypy.request.config))
+        def req_aliaser(k, v):
+            import traceback
+            traceback.print_stack()
+            log('Aliasing {0}, {1}'.format(k,v))
+            temp = getattr(cherrypy.serving, 'lg_authority_aliased', None)
+            if temp is None:
+                temp = {}
+                cherrypy.serving.lg_authority_aliased = temp
+                cherrypy.request.hooks.attach('on_start_resource', req_handler)
+                log('Hook attached for aliases')
+            temp['tools.lg_authority.' + k] = v
+        cherrypy.config.namespaces[name] = gen_aliaser
+        cherrypy.Application.namespaces[name] = req_aliaser
+        cherrypy.Application.request_class.namespaces[name] = req_aliaser
 
-    def _merged_args(self):
+    def _merged_args(self, auth_args=None):
         """Since we have aliases and a base config dict, we merge our
         own arguments.
+
+        auth_args may be specified for debugging from a prompt.
         """
         #Merge conf out of the default configuration, aliased configurations,
         #and tools configuration.
         base_dict = config.copy()
-        for name in self.aliases:
-            namestart = name + '.'
-            lenstart = len(namestart)
-            for k,v in cherrypy.request.config.items():
-                if k.startswith(namestart):
-                    base_dict[k[lenstart:]] = v
-        return cherrypy.Tool._merged_args(self, base_dict)
+        if auth_args is None:
+            base_dict = cherrypy.Tool._merged_args(self, base_dict)
+        else:
+            base_dict.update(auth_args)
+
+        return base_dict
 
     def _setup(self):
         """Hook into cherrypy.request.  Called automatically if turned on."""
@@ -63,7 +90,11 @@ class AuthTool(cherrypy.Tool):
         #Initialization stuff
         if not hasattr(self, 'initialized'):
             self.initialized = True
-            self._setup_initialize(conf)
+            try:
+                self._setup_initialize(conf)
+            except:
+                self.initialized = False
+                raise
 
         p = conf.pop('priority', 60) #Priority should be higher than session
                                      #priority, since we read the session.
@@ -106,6 +137,9 @@ class AuthTool(cherrypy.Tool):
         if clean_freq:
             def cleanup():
                 config.storage_class.clean_up()
+            #Start with a bang!
+            cleanup()
+
             config.storage_cleanup_thread = cherrypy.process.plugins.Monitor(
                 cherrypy.engine, cleanup, clean_freq * 60
                 ,name = 'Slate Storage Cleanup'
@@ -146,10 +180,10 @@ class AuthTool(cherrypy.Tool):
         user = user and ConfigDict(user)
         cherrypy.serving.user = user
         if user is not None:
-            user.name = user['name'] #Convenience
+            user.name = user['__name__'] #Convenience
             user.groups = user['groups'] #Convenience
             user.slate = slates.Slate(
-                kwargs['user_slate_section'], user['name']
+                kwargs['user_slate_section'], user.name
                 )
 
         #Now validate static permissions, if any
@@ -157,7 +191,7 @@ class AuthTool(cherrypy.Tool):
         if access_groups is not None:
             if len(access_groups) > 0 and access_groups[0] == 'all:':
                 access_groups = access_groups[1:]
-                check_groups_all(*access_groups)
+                require_groups_all(*access_groups)
             else:
-                check_groups(*access_groups)
+                require_groups(*access_groups)
 

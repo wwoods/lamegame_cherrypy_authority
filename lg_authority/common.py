@@ -25,7 +25,7 @@ def email_reg_default_body(username):
         ,site=get_site_name()
         )
 
-#Slate is set by slates
+#config.Slate is set by slates
 
 class AuthError(Exception):
     pass
@@ -53,12 +53,13 @@ config.update({
         }
     #Configuration options for the specified site storage.
     ,
-    'site_storage_sections': {
-        'user': { 'index_lists':  [ 'auth_openid', 'groups', 'emails' ] }
+    'site_storage_sections_user': {
+        'index_lists':  [ 'auth_openid', 'groups', 'emails' ]
         }
     #Configuration items for various sections of slates.
+    #Just replace "_user" with "_{section name}" to set up config.
     #Most sections do not need any options, but if you want anything
-    #indexed, then this is where you specify it.
+    #indexed, or admin-editable, then this is where you specify it.
     ,
     'site_storage_clean_freq': 60
     #Minutes between cleaning up expired site storage.
@@ -256,8 +257,7 @@ def check_groups(*groups):
             allow = True
             break
 
-    if not allow:
-        deny_access()
+    return allow
 
 def check_groups_all(*groups):
     """Compare the user's groups to *groups.  If the user is in ALL
@@ -276,6 +276,21 @@ def check_groups_all(*groups):
             allow = False
             break
 
-    if not allow:
+    return allow
+
+def require_groups(*groups):
+    """Helper function that checks if the user is a member of any of the
+    groups specified, and if not, denies access (raises a CherryPy
+    redirect or error.
+    """
+    if not check_groups(*groups):
+        deny_access()
+
+def require_groups_all(*groups):
+    """Helper function that checks if the user is a member of all
+    groups specified, and if not, denies access (raises a CherryPy
+    redirect or error.
+    """
+    if not check_groups_all(*groups):
         deny_access()
 

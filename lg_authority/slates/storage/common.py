@@ -43,6 +43,13 @@ class SlateStorage(object): #PY3 , metaclass=cherrypy._AttributeDocstring):
         for the given section.
         """
         raise NotImplementedError()
+
+    @classmethod
+    def find_slates_between(cls, section, start, end, limit=None, skip=None):
+        """Return a list of slate names between start and end, optionally
+        limiting the number of results and/or skipping the first X results.
+        """
+        raise NotImplementedError()
         
     def pop(self, key, default):
         """Deletes and returns the value for the given key, or if it
@@ -55,21 +62,21 @@ class SlateStorage(object): #PY3 , metaclass=cherrypy._AttributeDocstring):
         for k in self.keys():
             self.pop(k, None)
 
-    def keys(self):
-        """Returns an iterator or list of all keys."""
-        raise NotImplementedError()
-
     def items(self):
         """Returns an iterator or list of all (key,value) pairs."""
-        raise NotImplementedError()
-
-    def values(self):
-        """Returns an iterator or list of all values."""
         raise NotImplementedError()
 
     def expire(self):
         """Expire and/or delete the storage for a slate"""
         raise NotImplementedError()
+
+    def keys(self):
+        """Returns an iterator or list of all keys."""
+        return [ d[0] for d in self.items() ]
+
+    def values(self):
+        """Returns an iterator or list of all values."""
+        return [ d[1] for d in self.items() ]
 
     def update(self, d):
         """for k in d: self[k] = d[k].  Override to make more efficient."""
@@ -100,4 +107,8 @@ class SlateStorage(object): #PY3 , metaclass=cherrypy._AttributeDocstring):
     def is_expired(cls, section, name):
         """Return True if the given slate is expired or does not exist"""
         raise NotImplementedError()
+
+    @classmethod
+    def get_section_config(cls, section):
+        return config.get('site_storage_sections_' + section, {})
 

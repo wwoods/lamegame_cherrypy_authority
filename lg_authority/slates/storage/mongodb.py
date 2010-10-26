@@ -99,7 +99,16 @@ class MongodbStorage(SlateStorage):
             doc = self.section.find_one({ '_id': self._id }, { 'data.' + key: 1 })
             result = doc.get('data', {}).get(key, default)
 
-        if result is not default and not key in self.section.lgauth_conf_indexed:
+        if result is not default:
+            result = self._get(key, result)
+        return result
+
+    def _get(self, key, value):
+        """Translates the given value for the specified key into
+        python objects (from pickle).
+        """
+        result = value
+        if key not in self.section.lgauth_conf_indexed:
             result = pickle.loads(str(result.decode('utf-8')))
         return result
 
@@ -111,6 +120,19 @@ class MongodbStorage(SlateStorage):
             results.append(result['name'])
         return results
 
+    @classmethod
+    def find_slates_between(cls, section, start, end, limit, skip):
+        result = []
+        section = cls._get_section(section)
+        cursor = section.find(
+            { 'name': { '$gte': start, '$lte': end } }, { 'name': 1 }
+            ).sort(
+            [ ('name',1) ]
+            )
+        skip = skip or 0
+        limit = limit or (-1 - skip)
+        return [ d['name'] for d in cursor[skip:skip + limit] ]
+
     def pop(self, key, default):
         result = self.get(key, default)
         self.section.update({ '_id': self._id }, { '$unset': { 'data.' + key: 1 } })
@@ -119,18 +141,11 @@ class MongodbStorage(SlateStorage):
     def clear(self):
         self.section.update({ '_id': self._id }, { '$unset': { 'data': 1 } })
 
-    def keys(self):
-        data = self.section.find_one({ '_id': self._id }, { 'data': 1 })
-        return data['data'].keys()
-
     def items(self):
         data = self.section.find_one({ '_id': self._id }, { 'data': 1 })
-        return data['data'].items()
+        itms = data['data'].items()
+        return [ (k,self._get(k,v)) for k,v in itms ]
 
-    def values(self):
-        data = self.section.find_one({ '_id': self._id }, { 'data': 1 })
-        return data['data'].values()
-    
     def expire(self):
         self.section.remove(self._id)
 
@@ -157,7 +172,7 @@ class MongodbStorage(SlateStorage):
         result.ensure_index([ ('name', 1) ], unique=True, background=True)
         result.ensure_index([ ('expire', 1) ], background=True)
 
-        options = config['site_storage_sections'].get(section, {})
+        options = cls.get_section_config(section)
         result.lgauth_conf_indexed = options.get('index_lists', [])
         for index in result.lgauth_conf_indexed:
             result.ensure_index([ ('data.' + index, 1) ], background=True)
@@ -181,5 +196,5 @@ class MongodbStorage(SlateStorage):
         now = datetime.datetime.utcnow()
         for section in cls.collections.values():
             section.remove({ 'expire': { '$lt': now } })
-        log('Cleaned expired sessions')
+        log('Cleaned expired slates')
 

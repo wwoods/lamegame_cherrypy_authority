@@ -37,7 +37,17 @@ class AuthRoot(object):
     @cherrypy.expose
     @groups('auth')
     def index(self):
-        return '<div class="lg_auth_form"><p>You are logged in as {user.name}</p><p>You are a member of the following groups: {groups}</p></div>'.format(user=cherrypy.user, groups=get_user_groups_named())
+        body = []
+        body.append('<div class="lg_auth_form">')
+        body.append('<p>You are logged in as {user.name} <a href="logout">(logout)</a></p><p>You are a member of the following groups: {groups}</p>'.format(
+            user=cherrypy.user
+            , groups=[ g[1] for g in get_user_groups_named().items() ]
+            ))
+        body.append('<p><a href="change_password">Change Password</a></p>')
+        if 'admin' in cherrypy.user.groups:
+            body.append('<p><a href="admin/">Admin Interface</a></p>')
+        body.append('</div>')
+        return ''.join(body)
 
     @cherrypy.expose
     def login(self, **kwargs):
@@ -147,6 +157,11 @@ original destination</a></p>""".format(redirect)
                 uargs = { 'groups': [] }
                 ok = True
                 #Intermediate (not final) username existence check
+                if ok:
+                    error = config.auth.user_name_invalid(uname)
+                    if error:
+                        kwargs['error'] = error
+                        ok = False
                 if ok and config.auth.user_exists(uname):
                     kwargs['error'] = 'Username already taken'
                     ok = False
@@ -196,7 +211,7 @@ original destination</a></p>""".format(redirect)
 
         #Go through registration providers, and ask for fields
         reg_forms = []
-        reg_forms.append(config.registrar.new_user_fields())
+        reg_forms.append(config.registrar.new_user_fields() or '')
         template_args['registration_forms'] = ''.join(reg_forms)
         
         #Captcha form
@@ -231,20 +246,32 @@ original destination</a></p>""".format(redirect)
     @groups('auth')
     def change_password(self, **kwargs):
         error = ''
-        if 'oldpass' in kwargs:
-            if not config.auth.test_password(cherrypy.user.name, kwargs['oldpass']):
-                error = 'Incorrect password'
-            elif kwargs['newpass'] != kwargs['newpass2']:
-                error = 'New passwords do not match'
-            else:
+        if cherrypy.request.method.upper() == 'POST':
+            try:
+                if 'oldpass' in kwargs:
+                    if not config.auth.test_password(cherrypy.user.name, kwargs['oldpass']):
+                        raise AuthError('Incorrect password')
+                if kwargs['newpass'] != kwargs['newpass2']:
+                    raise AuthError('New passwords do not match')
+
                 new_pass = kwargs['newpass']
                 error = passwords.check_complexity(new_pass)
-                if error is None:
-                    config.auth.set_user_password(
-                        cherrypy.user.name
-                        , [ 'sha256', passwords.sha256(new_pass) ]
-                        )
-                    return "Password changed successfully."
+                if error is not None:
+                    raise AuthError(error)
+
+                config.auth.set_user_password(
+                    cherrypy.user.name
+                    , [ 'sha256', passwords.sha256(new_pass) ]
+                    )
+                return "Password changed successfully."
+            except AuthError as ae:
+                error = str(ae)
+
+        oldpass = ''
+        password = config.auth.get_user_password(cherrypy.user.name)
+        if password is not None:
+            oldpass = '<tr><td>Old Password</td><td><input type="password" name="oldpass" /></td></tr>'
+
         return """
 <div class="lg_auth_form">
 <span style="color:#ff0000;" class="lg_auth_error">{error}</span>
@@ -252,7 +279,7 @@ original destination</a></p>""".format(redirect)
   <p>
     Change Password:
     <table>
-      <tr><td>Old Password</td><td><input type="password" name="oldpass" /></td></tr>
+      {oldpass}
       <tr><td>New Password</td><td><input type="password" name="newpass" /></td></tr>
       <tr><td>New Password (again)</td><td><input type="password" name="newpass2" /></td></tr>
       <tr><td><input type="submit" value="Submit" /></td></tr>
@@ -260,7 +287,7 @@ original destination</a></p>""".format(redirect)
   </p>
 </form>
 </div>
-        """.format(error=error)
+        """.format(oldpass=oldpass, error=error)
 
     @cherrypy.expose
     @method_filter(methods=['POST'])

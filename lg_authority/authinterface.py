@@ -8,6 +8,18 @@ class AuthInterface(object):
     """The interface for auth-specific functions with the storage backend.
     """
 
+    def user_name_invalid(self, username):
+        """Return a human-readable error if username is invalid or
+        has invalid characters.
+        """
+        if '"' in username or "'" in username:
+            return "Name may not have quotes"
+        if '<' in username or '>' in username:
+            return "Name may not have > or <"
+        if ' ' in username:
+            return "Name may not have spaces"
+        return False
+
     def user_create(self, username, data, timeout=missing):
         """Inserts a user or raises an *Error"""
         kwargs = { 'timeout': None }
@@ -69,20 +81,43 @@ class AuthInterface(object):
         user.update(uargs)
         holder.expire()
 
-    def get_user_record(self, username):
-        """Returns the record for the given username (or None).  Should 
-        be a dict that looks like the following: 
-        { 'name': username, 'groups': [ 'groupid1', 'groupid2' ], 'info': {} }
+    def user_get_inactive(self, username):
+        pname = 'userold-' + username
+        return Slate.lookup('user', pname)
 
-        info contains e.g. 'email', 'firstname', 'lastname', etc.
+    def user_activate(self, username):
+        pname = 'userold-' + username
+        inact = Slate.lookup('user', pname)
+        if inact is None:
+            raise AuthError('Cannot activate non-inactive user')
+
+        items = inact.todict()
+        nname = 'user-' + username
+        s = Slate('user', nname)
+        s.update(items)
+
+        #Do this last to keep the user's data in case of unexpected error.
+        inact.expire()
+
+    def user_deactivate(self, username):
+        oname = 'user-' + username
+        act = Slate.lookup('user', oname)
+        if act is None:
+            raise AuthError('Cannot deactive non-active user')
+
+        items = act.todict()
+        nname = 'userold-' + username
+        s = Slate('user', nname)
+        s.update(items)
+
+        #Do this last to keep user's data in case of unexpected error
+        act.expire()
+
+    def user_get_record(self, username):
+        """Returns the record for the given username (or None).
         """
         slate = Slate.lookup('user', 'user-' + username)
-        if slate is None:
-            return None
-        return {
-            'name': username
-            ,'groups': slate['groups']
-            }
+        return slate
 
     def get_user_from_openid(self, openid_url):
         """Returns the username for the given openid_url, or None.
@@ -142,8 +177,10 @@ class AuthInterface(object):
 
     def login(self, username):
         """Logs in the specified username.  Returns the user record."""
-        record = self.get_user_record(username)
-        cherrypy.session['auth'] = record
+        record = self.user_get_record(username)
+        d = record.todict()
+        d['__name__'] = username
+        cherrypy.session['auth'] = d
         return record
 
     def logout(self):
