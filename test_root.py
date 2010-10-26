@@ -29,7 +29,7 @@ class TestAlias(object):
 cherrypy.tree.mount(TestAlias(), '/')
 cherrypy.config.update({ 
     'server.socket_host': '0.0.0.0'
-    , 'server.socket_port': 8081 
+    , 'server.socket_port': 8080
     , 'tools.lg_authority.on': True
     , 'tools.lg_authority.site_debug': True
     , 'tools.lg_authority.site_storage': 'mongodb'
@@ -42,6 +42,10 @@ cherrypy.config.update({
         ,'private': '6Le8H74SAAAAAMHdM9B_8bmvFvkJbFqn3Y6WYcwD'
         }
     })
+try:
+    from site_local import *
+except ImportError:
+    pass
 cherrypy.engine.start()
 cherrypy.engine.block()
 
