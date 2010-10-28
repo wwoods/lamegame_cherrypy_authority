@@ -74,7 +74,7 @@ else:
         def index(self, url, redirect=None):
             """Begin the openID request"""
             openid_url = url
-            redirect = redirect or ''
+            redirect = redirect or ' ' #Blank doesn't get retransmitted
             c = self.get_consumer()
             error = None
 
@@ -125,6 +125,8 @@ else:
         def finish(self, **kwargs):
             """End the openID request"""
             redirect = kwargs['redirect'] #Required
+            if redirect == ' ': #Fix our hack earlier
+                redirect = ''
             result = {}
 
             c = self.get_consumer()
@@ -152,7 +154,7 @@ else:
             elif response.status == consumer.CANCEL:
                 self.redirect_err('OpenID authentication cancelled', redirect)
             elif response.status == consumer.FAILURE:
-                self.redirect_err('OpenID authentication failed', redirect)
+                self.redirect_err('OpenID authentication failed: {0}'.format(response.message), redirect)
 
         @cherrypy.expose
         def xrds(self):

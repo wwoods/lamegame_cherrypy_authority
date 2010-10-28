@@ -156,12 +156,12 @@ config.update({
     #'auth' means all authenticated users
     #'user-' + username means specifically (and only) username
     ,
-    'user_home_page': '/'
+    'user_home_page': '..'
     #The page to redirect to (if relative, then from AuthRoot/OneLevel/)
     #on successful authentication when a redirect action was not requested.
     #May be a function that returns a URL, given a user record.
     ,
-    'logout_page': '/'
+    'logout_page': '..'
     #Page to redirect to on logout.  Use None to show a standard auth
     #page confirming the logout.
     ,

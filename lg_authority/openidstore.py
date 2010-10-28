@@ -53,6 +53,7 @@ else:
 
         def useNonce(self, server_url, timestamp, salt):
             if abs(timestamp - time.time()) > nonce.SKEW:
+                log('OpenID nonce denied')
                 return False
 
             anonce = str((str(server_url), int(timestamp), str(salt)))
