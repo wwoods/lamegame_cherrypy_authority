@@ -181,7 +181,22 @@ class AuthInterface(object):
         d = record.todict()
         d['__name__'] = username
         cherrypy.session['auth'] = d
+
+        self.serve_user_from_dict(d)
         return record
+
+    def serve_user_from_dict(self, d):
+        """Sets cherrypy.serving.user based on the passed auth dict.
+        d may be None.
+        """
+        user = d and ConfigDict(d)
+        cherrypy.serving.user = user
+        if user is not None:
+            user.name = user['__name__'] #Convenience
+            user.groups = user['groups'] #Convenience
+            user.slate = Slate(
+                cherrypy.serving.lg_authority['user_slate_section'], user.name
+                )
 
     def logout(self):
         """Log out the current logged in user."""

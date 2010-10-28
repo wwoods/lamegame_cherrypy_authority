@@ -37,12 +37,27 @@ class SlateStorage(object): #PY3 , metaclass=cherrypy._AttributeDocstring):
         raise NotImplementedError()
 
     @classmethod
+    def count_slates_with(cls, section, key, value):
+        """Return the number of slate names having value in the array keyed
+        by key.  key must be in site_storage_sections_{section}'s index_lists
+        parameter.
+        """
+        return len(cls.find_slates_with(section, key, value))
+
+    @classmethod
     def find_slates_with(cls, section, key, value):
         """Return a list of slate names having value in the array keyed by
-        key.  key must be in site_storage_sections' index_lists parameter
-        for the given section.
+        key.  key must be in site_storage_sections_{section}' index_lists 
+        parameter for the given section.
         """
         raise NotImplementedError()
+
+    @classmethod
+    def count_slates_between(cls, section, start, end):
+        """Returns the number of slates whose names fall (inclusively)
+        between start and end in the given section.
+        """
+        return len(cls.find_slates_between(section, start, end))
 
     @classmethod
     def find_slates_between(cls, section, start, end, limit=None, skip=None):

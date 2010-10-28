@@ -2,6 +2,7 @@
 
 import os
 import datetime
+import json
 
 import cherrypy
 
@@ -48,6 +49,23 @@ class AuthRoot(object):
             body.append('<p><a href="admin/">Admin Interface</a></p>')
         body.append('</div>')
         return ''.join(body)
+
+    @cherrypy.expose
+    def login_service(self, **kwargs):
+        if 'username' in kwargs:
+            username = kwargs['username']
+            password = kwargs['password']
+            if config.auth.test_password(username, password):
+                user = config.auth.login(username)
+            
+        if cherrypy.user:
+            groups = [ { 'id': k, 'name': v } for k,v in get_user_groups_named().items() ]
+            return json.dumps({ 
+                'username': cherrypy.user.name
+                ,'userprimary': 'user-' + cherrypy.user.name
+                ,'usergroups': groups
+                })
+        return { 'error': 'Invalid credentials' }
 
     @cherrypy.expose
     def login(self, **kwargs):

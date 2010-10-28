@@ -91,6 +91,8 @@ class MongodbStorage(SlateStorage):
             )
 
     def get(self, key, default):
+        if not isinstance(key, basestring):
+            raise ValueError("Key must be string; was {0}".format(key))
         if key in self._cache:
             result = self._cache[key]
             if result is None:
@@ -121,7 +123,7 @@ class MongodbStorage(SlateStorage):
         return results
 
     @classmethod
-    def find_slates_between(cls, section, start, end, limit, skip):
+    def find_slates_between(cls, section, start, end, limit=None, skip=None):
         result = []
         section = cls._get_section(section)
         cursor = section.find(
@@ -130,8 +132,8 @@ class MongodbStorage(SlateStorage):
             [ ('name',1) ]
             )
         skip = skip or 0
-        limit = limit or (-1 - skip)
-        return [ d['name'] for d in cursor[skip:skip + limit] ]
+        limit = skip + limit if limit else None
+        return [ d['name'] for d in cursor[skip:limit] ]
 
     def pop(self, key, default):
         result = self.get(key, default)

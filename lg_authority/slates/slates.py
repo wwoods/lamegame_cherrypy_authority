@@ -75,12 +75,27 @@ class Slate(object): #PY3 , metaclass=cherrypy._AttributeDocstrings):
         return config.storage_class.is_expired(section, name)
 
     @classmethod
+    def count_slates_with(cls, section, key, value):
+        """Return the number of slates who have value in the array keyed
+        by key.  key must be in site_storage_sections_{section}'s index_lists
+        parameter for the given section.
+        """
+        return config.storage_class.count_slates_with(section, key, value)
+
+    @classmethod
     def find_slates_with(cls, section, key, value):
         """Return a list of slate names having value in the array keyed by
         key.  key must be in site_storage_sections_{section}'s index_lists 
         parameter for the given section.
         """
         return config.storage_class.find_slates_with(section, key, value)
+
+    @classmethod
+    def count_slates_between(cls, section, start, end):
+        """Returns the number of slates whose names are (inclusively) between
+        start and end.
+        """
+        return config.storage_class.count_slates_between(section, start, end)
 
     @classmethod
     def find_slates_between(cls, section, start, end, limit=None, skip=None):
@@ -108,6 +123,12 @@ class Slate(object): #PY3 , metaclass=cherrypy._AttributeDocstrings):
         result = self.storage.pop(key, missing)
         if result is missing:
             raise KeyError(key)
+
+    def __contains__(self, key):
+        result = self.storage.get(key, missing)
+        if result is missing:
+            return False
+        return True
 
     def get(self, key, default=None):
         """Return the value for the specified key, or default"""

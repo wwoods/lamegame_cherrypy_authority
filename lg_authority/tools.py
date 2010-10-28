@@ -177,14 +177,7 @@ class AuthTool(cherrypy.Tool):
         """
         #Make the user into an object for conveniences
         user = cherrypy.session.get('auth', None)
-        user = user and ConfigDict(user)
-        cherrypy.serving.user = user
-        if user is not None:
-            user.name = user['__name__'] #Convenience
-            user.groups = user['groups'] #Convenience
-            user.slate = slates.Slate(
-                kwargs['user_slate_section'], user.name
-                )
+        config.auth.serve_user_from_dict(user)
 
         #Now validate static permissions, if any
         access_groups = kwargs['groups']

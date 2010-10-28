@@ -28,7 +28,7 @@ else:
     from openid.extensions import ax, pape, sreg
     from openid.yadis.constants import YADIS_HEADER_NAME, YADIS_CONTENT_TYPE
     from openid.server.trustroot import RP_RETURN_TO_URL_TYPE
-    from openid.store.memstore import MemoryStore
+    from .openidstore import OpenIdStore
 
     PAPE_POLICIES = [
         pape.AUTH_PHISHING_RESISTANT
@@ -44,7 +44,7 @@ else:
         supported = True
 
         static_path = '../static'
-        store = MemoryStore()
+        store = OpenIdStore()
 
         def __init__(self, auth_root):
             self.auth_root = auth_root

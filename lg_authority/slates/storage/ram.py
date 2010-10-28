@@ -44,7 +44,7 @@ class RamStorage(SlateStorage):
         return result
 
     @classmethod
-    def find_slates_between(cls, section, start, end, limit, skip):
+    def find_slates_between(cls, section, start, end, limit=None, skip=None):
         sec = cls.section_cache.get(section, {}).keys()
         sec = [ s for s in sec if start <= s and s <= end ]
         sec.sort()
@@ -85,12 +85,12 @@ class RamStorage(SlateStorage):
     
     @classmethod
     def clean_up(cls):
-        """Clean up expired sessions."""
+        """Clean up expired slates."""
         for s,c in list(cls.section_cache.items()):
             for id in list(c.keys()):
                 if cls.is_expired(s, id):
                     cls._expire(c, s, c[id])
-        log('Cleaned expired sessions')
+        log('Cleaned expired slates')
 
     @classmethod
     def _expire(cls, section, slate):

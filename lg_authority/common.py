@@ -4,6 +4,12 @@ import re
 import datetime
 import cherrypy
 
+#Python 2to3 helpers
+try:
+    basestring
+except NameError:
+    basestring = str
+
 def log(message):
     if log.enabled:
         cherrypy.log(message, 'LG_AUTHORITY')
@@ -118,7 +124,7 @@ config.update({
         }
     #Your public and private keys for recaptcha, or None to disable recaptcha
     ,
-    'site_debug': True
+    'site_debug': False
     #Print debug messages for lg_authority?  True/False
     ,
     'override_sessions': True
@@ -155,7 +161,7 @@ config.update({
     #on successful authentication when a redirect action was not requested.
     #May be a function that returns a URL, given a user record.
     ,
-    'logout_page': None
+    'logout_page': '/'
     #Page to redirect to on logout.  Use None to show a standard auth
     #page confirming the logout.
     ,
