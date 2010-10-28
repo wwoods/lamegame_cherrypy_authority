@@ -80,7 +80,7 @@ class MongodbStorage(SlateStorage):
         if key in self.section.lgauth_conf_indexed:
             pickled = value
         else:
-            pickled = pickle.dumps(value).encode('utf-8')
+            pickled = self.binary(pickle.dumps(value))
 
         if key in self._cache:
             self._cache[key] = pickled
@@ -111,7 +111,7 @@ class MongodbStorage(SlateStorage):
         """
         result = value
         if key not in self.section.lgauth_conf_indexed:
-            result = pickle.loads(str(result.decode('utf-8')))
+            result = pickle.loads(result)
         return result
 
     @classmethod
@@ -161,6 +161,9 @@ class MongodbStorage(SlateStorage):
         cls.db = c[conf['db']]
         cls.collection_base = conf['collection_base']
         cls.collections = {}
+
+        from bson.binary import Binary
+        cls.binary = Binary
 
     @classmethod
     def _get_section(cls, section):
