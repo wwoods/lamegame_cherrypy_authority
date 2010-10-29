@@ -26,13 +26,18 @@ class AuthRoot(object):
     def __init__(self):
         self.login_openid = OpenIdConsumerRoot(self)
 
-    def login_redirect(self, user, redirect=None):
+    def login_redirect(self, redirect=None):
         """Raises cherrypy.HTTPRedirect to the appropriate location.
         Used by login handlers on success.
         """
         redirect = redirect or config['user_home_page']
         if hasattr(redirect, '__call__'):
-            redirect = redirect(user)
+             redirect = redirect()
+        if config.auth.old_password(cherrypy.user.name):
+            redirect = url_add_parms(
+                'change_password'
+                , { 'redirect': redirect, 'error': 'Your password is more than {old} days old.  It would be good to change it for security.'.format(old=config['site_password_renewal']) }
+                )
         raise cherrypy.HTTPRedirect(redirect)
 
     @cherrypy.expose
@@ -53,9 +58,11 @@ class AuthRoot(object):
     @cherrypy.expose
     def login_service(self, **kwargs):
         if 'username' in kwargs:
-            username = kwargs['username']
+            username = kwargs['username'].lower()
             password = kwargs['password']
-            if config.auth.test_password(username, password):
+
+            username = config.auth.test_password(username, password)
+            if username is not None:
                 user = config.auth.login(username)
             
         if cherrypy.user:
@@ -72,7 +79,7 @@ class AuthRoot(object):
         #Check for already logged in.  This allows page refreshes to login
         #if multiple tabs were open.
         if cherrypy.user:
-            self.login_redirect(cherrypy.user, kwargs.get('redirect'))
+            self.login_redirect(kwargs.get('redirect'))
 
         kwargs.setdefault('error', '')
         kwargs.setdefault('redirect', '')
@@ -116,7 +123,7 @@ New accounts are not allowed.  Contact administrator if you need access.
   <p>
     Password Login:
     <table>
-      <tr><td>Username</td><td><input type="text" name="username" /></td></tr>
+      <tr><td>Username or Email</td><td><input type="text" name="username" /></td></tr>
       <tr><td>Password</td><td><input type="password" name="password" /></td></tr>
       <tr><td><input type="submit" value="Submit" /></td></tr>
     </table>
@@ -263,11 +270,12 @@ original destination</a></p>""".format(redirect)
     @cherrypy.expose
     @groups('auth')
     def change_password(self, **kwargs):
-        error = ''
+        error = kwargs.get('error', '')
+        redirect = kwargs.get('redirect', '')
         if cherrypy.request.method.upper() == 'POST':
             try:
                 if 'oldpass' in kwargs:
-                    if not config.auth.test_password(cherrypy.user.name, kwargs['oldpass']):
+                    if config.auth.test_password(cherrypy.user.name, kwargs['oldpass']) is None:
                         raise AuthError('Incorrect password')
                 if kwargs['newpass'] != kwargs['newpass2']:
                     raise AuthError('New passwords do not match')
@@ -281,6 +289,8 @@ original destination</a></p>""".format(redirect)
                     cherrypy.user.name
                     , [ 'sha256', passwords.sha256(new_pass) ]
                     )
+                if redirect:
+                    raise cherrypy.HTTPRedirect(redirect)
                 return "Password changed successfully."
             except AuthError as ae:
                 error = str(ae)
@@ -294,6 +304,7 @@ original destination</a></p>""".format(redirect)
 <div class="lg_auth_form">
 <span style="color:#ff0000;" class="lg_auth_error">{error}</span>
 <form action="change_password" method="POST">
+  <input type="hidden" name="redirect" value="{redirect}" />
   <p>
     Change Password:
     <table>
@@ -305,16 +316,17 @@ original destination</a></p>""".format(redirect)
   </p>
 </form>
 </div>
-        """.format(oldpass=oldpass, error=error)
+        """.format(oldpass=oldpass, error=error, redirect=redirect)
 
     @cherrypy.expose
     @method_filter(methods=['POST'])
     def login_password(self, username, password, redirect=None):
         #Case insensitive usernames
         username = username.lower()
-        if config.auth.test_password(username, password):
-            user = config.auth.login(username)
-            self.login_redirect(user, redirect)
+        username = config.auth.test_password(username, password)
+        if username is not None:
+            config.auth.login(username)
+            self.login_redirect(redirect)
         raise cherrypy.HTTPRedirect(
             url_add_parms(
                 'login'
@@ -328,8 +340,8 @@ original destination</a></p>""".format(redirect)
         """
         username = config.auth.get_user_from_openid(url)
         if username is not None:
-            user = config.auth.login(username)
-            self.login_redirect(user, redirect)
+            config.auth.login(username)
+            self.login_redirect(redirect)
 
         #No known user has that openID... ask if they want to register,
         #if applicable.

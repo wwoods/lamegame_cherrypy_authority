@@ -18,6 +18,8 @@ class AuthInterface(object):
             return "Name may not have > or <"
         if ' ' in username:
             return "Name may not have spaces"
+        if '@' in username:
+            return "Name may not contain the @ symbol"
         return False
 
     def user_create(self, username, data, timeout=missing):
@@ -119,6 +121,19 @@ class AuthInterface(object):
         slate = Slate.lookup('user', 'user-' + username)
         return slate
 
+    def get_user_from_email(self, email):
+        """Returns the username for the given email, or None.
+        """
+        result = config.storage_class.find_slates_with('user', 'emails', email)
+        if len(result) == 1 and result[0].startswith('user-'):
+            return result[0][len('user-'):]
+        elif len(result) == 1: #Inactive user
+            return None
+        elif len(result) == 0:
+            return None
+        else:
+            raise AuthError("More than one user has this e-mail!")
+
     def get_user_from_openid(self, openid_url):
         """Returns the username for the given openid_url, or None.
         """
@@ -131,7 +146,7 @@ class AuthInterface(object):
             #Probably an inactive account.
             return None
         else:
-            raise ValueError('More than one user has this OpenID')
+            raise AuthError('More than one user has this OpenID')
 
     def get_user_password(self, username):
         """Returns a dict consisting of a "date" element that is the UTC time
@@ -205,15 +220,32 @@ class AuthInterface(object):
         else:
             cherrypy.lib.sessions.expire()
 
-    def test_password(self, username, password):
-        "Returns True for OK, False for failed auth"
-        expected = self.get_user_password(username)
-        if expected is None:
+    def old_password(self, username):
+        renew = config['site_password_renewal']
+        if renew is None:
+            return
+        passw = self.get_user_password(username)
+        if passw is None:
+            #No password, they don't need to renew probably!
             return False
-
-        if passwords.verify(password, expected['pass']):
+        if (datetime.datetime.utcnow() - passw['date']).days >= renew:
             return True
         return False
+
+    def test_password(self, username, password):
+        "Returns username for OK, None for failed auth"
+        if '@' in username:
+            #Map e-mail to user
+            username = self.get_user_from_email(username)
+            if username is None:
+                return None
+        expected = self.get_user_password(username)
+        if expected is None:
+            return None
+
+        if passwords.verify(password, expected['pass']):
+            return username
+        return None
 
     def get_group_name(self, groupid):
         """Returns the common name for the given groupid.

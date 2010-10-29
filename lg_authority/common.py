@@ -51,6 +51,11 @@ config.update({
     'site_key': 'abc123o2qh3otin;oiH#*@(TY(#*Th:T*:(@#HTntb982#HN(:@#*TBH:@#(*THioihI#HOIH%oihio3@H%IOH#@%I)(!*@Y%+(+!@H%~`un23gkh'
     #Site encryption key for passwords.  Should be more than 60 chars.
     ,
+    'site_password_renewal': 365
+    #Days until users receive warnings that their passwords are old when they
+    #log in.  Use None for no warning.  Only users with passwords (not openid
+    #users) will be prompted.
+    ,
     'site_storage': 'ram'
     #The storage backend for the auth framework.  Essentially, we use 
     #a namespaced key-value store with expiration times on the namespaces.
@@ -159,7 +164,8 @@ config.update({
     'user_home_page': '..'
     #The page to redirect to (if relative, then from AuthRoot/OneLevel/)
     #on successful authentication when a redirect action was not requested.
-    #May be a function that returns a URL, given a user record.
+    #May be a function that returns a URL; that function may use cherrypy.user
+    #to determine the user's identity.
     ,
     'logout_page': '..'
     #Page to redirect to on logout.  Use None to show a standard auth
