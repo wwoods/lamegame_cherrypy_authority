@@ -3,7 +3,7 @@ class Registrar(object):
     def __init__(self, conf):
         """Initializes a new registrar with the given params."""
 
-    def new_account_ok(self, uname):
+    def new_account_ok(self, uname, redirect):
         """Get a message detailing the user's next step"""
         raise NotImplementedError()
 
@@ -12,7 +12,7 @@ class Registrar(object):
         for registration.
         """
 
-    def process_new_user(self, uname, uargs, authargs):
+    def process_new_user(self, uname, uargs, authargs, redirect):
         """Process the holder record for new user uname.  
         On success, either config.auth.user_create_holder or 
         config.auth.user_create should be called.

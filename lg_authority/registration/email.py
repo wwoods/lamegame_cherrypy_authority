@@ -8,13 +8,13 @@ class EmailRegistrar(object):
     def __init__(self, conf):
         self.conf = conf
 
-    def new_account_ok(self, uname):
-        return "<p>You will be receiving an email shortly (be sure to check your SPAM folder as well).  Click the link contained in it to activate your account.</p>"
+    def new_account_ok(self, uname, redirect):
+        return "<p>You will be receiving an email shortly (be sure to check your SPAM folder as well).  Click the link contained in it to activate your account and continue to your original destination.</p>"
 
     def new_user_fields(self):
         return """<tr><td>Email</td><td><input type="text" style="width:20em;" name="email" /></td></tr>"""
 
-    def process_new_user(self, uname, uargs, authargs):
+    def process_new_user(self, uname, uargs, authargs, redirect):
         code = uuid4().hex
         email = authargs['email']
         uargs['emails'] = [ email ]
@@ -38,7 +38,7 @@ class EmailRegistrar(object):
         body += "\r\n\r\nVisit this address to activate your account: {0}".format(
             url_add_parms(
                 cherrypy.url('reg_response_link')
-                , { 'key': code, 'username': uname }
+                , { 'key': code, 'username': uname, 'redirect': redirect }
                 )
             )
 
@@ -73,13 +73,16 @@ Subject: {subject}
         #Email sent OK, put in the holder
         config.auth.user_create_holder(uname, uargs)
 
-    def response_link(self, username=None, key=None):
+    def response_link(self, username=None, key=None, redirect=None):
         holder = config.auth.user_get_holder(username)
         if holder is not None and key == holder['email_code']:
             del holder['email_code']
             config.auth.user_promote_holder(holder)
             config.auth.login(username)
-            return "Account activated.  You are now logged in."
+            response = "<p>Account activated.  You are now logged in.</p>"
+            if redirect:
+                response += '<p><a href="{0}">Click to continue</a></p>'.format(redirect)
+            return response
         time.sleep(0.1)
         return "Invalid key."
 

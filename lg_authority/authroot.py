@@ -145,13 +145,10 @@ New accounts are not allowed.  Contact administrator if you need access.
         
     @cherrypy.expose
     def new_account_ok(self, username, redirect=''):
-        redir_wait = config.registrar.new_account_ok(username)
-        redir_link = ''
+        redir_text = config.registrar.new_account_ok(username, redirect)
         if redirect:
             redir_link = """<p><a href="{0}">Click here to continue to your
 original destination</a></p>""".format(redirect)
-
-        redir_text = redir_wait + redir_link
 
         return """<div class="lg_auth_form">{redirect}</div>""".format(redirect=redir_text)
     
@@ -159,6 +156,8 @@ original destination</a></p>""".format(redirect)
     def new_account(self, **kwargs):
         if config['site_registration'] is None:
             return """<div class="lg_auth_form">Registration is not available for this site.</div>"""
+
+        redirect = kwargs.get('redirect', '')
     
         if cherrypy.request.method.upper() == 'POST':
             try:
@@ -208,13 +207,13 @@ original destination</a></p>""".format(redirect)
                     uargs['auth_openid'] = [ cherrypy.session['openid_url'] ]
                 
                 if ok:
-                    config.registrar.process_new_user(uname, uargs, kwargs)
+                    config.registrar.process_new_user(uname, uargs, kwargs, redirect)
                     raise cherrypy.HTTPRedirect(
                         url_add_parms(
                             'new_account_ok'
                             , { 
                                 'username': uname
-                                ,'redirect': kwargs.get('redirect', '') 
+                                ,'redirect': redirect
                                 }
                             )
                         )
@@ -226,7 +225,7 @@ original destination</a></p>""".format(redirect)
             ,'password_form': ''
             ,'error': kwargs.get('error', '')
             ,'username': kwargs.get('username', '')
-            ,'redirect': kwargs.get('redirect', '')
+            ,'redirect': redirect
             }
         if kwargs.get('openid') != 'stored':
             template_args['password_form'] = """
