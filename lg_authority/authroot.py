@@ -342,7 +342,7 @@ original destination</a></p>""".format(redirect)
             del u['email_forgot_code']
 
             #OK!
-            config.auth.login(user, forgotpass=True)
+            config.auth.login(user, admin=True)
             raise cherrypy.HTTPRedirect(url_add_parms('change_password', { 'redirect': redirect, 'error': 'Please enter a new password' }))
 
         except AuthError as e:
