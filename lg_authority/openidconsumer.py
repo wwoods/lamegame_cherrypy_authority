@@ -57,13 +57,15 @@ else:
                 url_add_parms('../login', { 'error': error, 'redirect': redirect })
                 )
 
-        def get_points(self, redirect=None):
+        def get_points(self, redirect=None, admin=False):
             """For any root-level openid consumer request, returns
             the urls for trust_root and return_to endpoints.
             """
             return_dict = {}
             if redirect:
                 return_dict['redirect'] = redirect
+            if admin:
+                return_dict['admin'] = 'true'
             return (
                 cherrypy.url('./') #MUST be static.  If changed, some providers
                                    #also change the identity URL.
@@ -71,7 +73,7 @@ else:
                 )
 
         @cherrypy.expose
-        def index(self, url, redirect=None):
+        def index(self, url, redirect=None, admin=False):
             """Begin the openID request"""
             openid_url = url
             redirect = redirect or ' ' #Blank doesn't get retransmitted
@@ -103,7 +105,7 @@ else:
             auth_request.addExtension(pape_request)
 
             #Trust root / return path
-            trust_root, return_to = self.get_points(redirect)
+            trust_root, return_to = self.get_points(redirect, admin)
 
             if auth_request.shouldSendRedirect():
                 raise cherrypy.HTTPRedirect(
@@ -143,9 +145,13 @@ else:
                 if not pape_response.auth_policies:
                     pape_response = None
 
+                extra_args = {}
+                if 'admin' in kwargs:
+                    extra_args['admin'] = True
                 return self.auth_root.login_openid_response(
                     response.getDisplayIdentifier()
                     ,redirect=redirect
+                    ,**extra_args
                     )
                 return """<p>OpenID: OK</p><p>url: {0}</p><p>sreg: {1}</p><p>ax: {2}</p><p>pape: {3}</p>""".format(
                     response.getDisplayIdentifier(), sreg_response, ax_response, pape_response

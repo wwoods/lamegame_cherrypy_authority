@@ -167,6 +167,9 @@ class AuthInterface(object):
             raise ValueError('User not found')
         user['auth_password'] = { 'date': datetime.datetime.utcnow(), 'pass': new_pass }
 
+        #Clear any admin login flag
+        cherrypy.session.pop('authtime_admin')
+
     def _get_group_name(self, groupid):
         """Retrieves the name for the given groupid.  This is subclassed as
         _get_group_name because get_group_name automatically handles user-,
@@ -190,15 +193,35 @@ class AuthInterface(object):
         group = Slate('user', sname, **kwargs)
         group.update(data)
 
-    def login(self, username):
+    def login(self, username, admin=False):
         """Logs in the specified username.  Returns the user record."""
         record = self.user_get_record(username)
         d = record.todict()
         d['__name__'] = username
         cherrypy.session['auth'] = d
+        cherrypy.session['authtime'] = datetime.datetime.utcnow()
+        if admin:
+            cherrypy.session['authtime_admin'] = datetime.datetime.utcnow()
 
         self.serve_user_from_dict(d)
         return record
+
+    def login_time_elapsed(self):
+        """Gets the # of seconds elapsed since the last login."""
+        t = datetime.datetime.utcnow() - cherrypy.session['authtime']
+        return t.days * 24 * 60 * 60 + t.seconds
+
+    def login_is_admin(self):
+        """Returns True if the current login is allowed to make administrative
+        changes to the account, or False otherwise.
+        """
+        authtime_admin = cherrypy.session.get('authtime_admin')
+        if authtime_admin is None:
+            return False
+        t = datetime.datetime.utcnow() - authtime_admin
+        if t.days * 24 * 60 * 60 + t.seconds < config['site_admin_login_window']:
+            return True
+        return False
 
     def serve_user_from_dict(self, d):
         """Sets cherrypy.serving.user based on the passed auth dict.

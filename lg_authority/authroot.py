@@ -78,7 +78,7 @@ class AuthRoot(object):
     def login(self, **kwargs):
         #Check for already logged in.  This allows page refreshes to login
         #if multiple tabs were open.
-        if cherrypy.user:
+        if cherrypy.user and 'admin' not in kwargs:
             self.login_redirect(kwargs.get('redirect'))
 
         kwargs.setdefault('error', '')
@@ -92,12 +92,43 @@ New accounts are not allowed.  Contact administrator if you need access.
 <a href="{0}">Don't have an account here?  Create one.</a>
 </p>""".format(url_add_parms('new_account', { 'redirect': kwargs.get('redirect', '') }))
 
+        forgot = ''
+        if config['site_email'] is not None:
+            forgot = '<tr><td><a href="{forgot_link}">Forgot your password?</a></td></tr>'.format(
+                forgot_link=url_add_parms('forgot_password', { 'redirect': kwargs.get('redirect') })
+                )
+
+        password_form = """
+<form action="login_password{adminqs}" method="POST">
+  <input type="hidden" name="redirect" value="{redirect}" />
+  <p>
+    Password Login:
+    <table>
+      <tr><td>Username or Email</td><td><input type="text" name="username" /></td></tr>
+      <tr><td>Password</td><td><input type="password" name="password" /></td></tr>
+      <tr><td><input type="submit" value="Submit" /></td></tr>
+      {forgot}
+    </table>
+  </p>
+</form>""".format(
+            redirect=kwargs.get('redirect', '')
+            , forgot=forgot
+            , adminqs='?admin=true' if 'admin' in kwargs else ''
+            )
+
+        openid_form = ''
         if self.login_openid.supported:
             #Setup OpenID providers
             openid_list = []
             def add_provider(name, url):
+                prov_parms = {
+                    'url': url
+                    ,'redirect': kwargs['redirect']
+                    }
+                if 'admin' in kwargs:
+                    prov_parms['admin'] = 'true'
                 li = """<li><a href="{url}">{name}</a></li>""".format(
-                    url = url_add_parms('login_openid', { 'url': url, 'redirect': kwargs['redirect'] })
+                    url = url_add_parms('login_openid', prov_parms)
                     ,name = name
                     )
                 openid_list.append(li)
@@ -106,34 +137,22 @@ New accounts are not allowed.  Contact administrator if you need access.
             add_provider('Yahoo!', 'http://yahoo.com')
             openid_list.append("""<li><form method="GET" action="login_openid" class="lg_auth_openid_><input type="hidden" name="redirect" value="{redirect}"/>OpenID URL: <input style="width:20em;" type="text" name="url" value="http://"/><input type="submit" value="Submit"/></form></li>""".format(**kwargs))
             openid_list = ''.join(openid_list)
-            kwargs['openid'] = """
+            openid_form = """
 <p class="lg_auth_select_openid">
   OpenID (have an account with any of these providers?  Click the appropriate icon to use it here):<ul>
     {openid_list}
   </ul>
 </p>""".format(openid_list=openid_list)
-        else:
-            kwargs['openid'] = ''
 
         return """
 <div class="lg_auth_form">
 <span style="color:#ff0000;" class="lg_auth_error">{error}</span>
-<form action="login_password" method="POST">
-  <input type="hidden" name="redirect" value="{redirect}" />
-  <p>
-    Password Login:
-    <table>
-      <tr><td>Username or Email</td><td><input type="text" name="username" /></td></tr>
-      <tr><td>Password</td><td><input type="password" name="password" /></td></tr>
-      <tr><td><input type="submit" value="Submit" /></td></tr>
-    </table>
-  </p>
-</form>
 {openid}
+{password}
 {new_account}
 </form>
 </div>
-        """.format(**kwargs)
+        """.format(password=password_form,openid=openid_form, **kwargs)
 
     @cherrypy.expose
     def logout(self):
@@ -267,15 +286,93 @@ original destination</a></p>""".format(redirect)
         return config.registrar.response_link(**kwargs)
 
     @cherrypy.expose
+    def forgot_password(self, redirect):
+        body = []
+        body.append('<div class="lg_auth_form">')
+        body.append('<p>If you have an e-mail registered with this site, enter it here to be e-mailed a password reset link:</p>')
+        body.append('<form method="POST" action="forgot_password_email">')
+        body.append('<input type="text" name="email" /><input type="submit" value="Submit" />')
+        body.append('<input type="hidden" name="redirect" value="{redirect}"/>'.format(redirect=redirect))
+        body.append('</form>')
+        body.append('</div>')
+        return ''.join(body)
+
+    @cherrypy.expose
+    def forgot_password_email(self, email, redirect):
+        error = ''
+
+        try:
+            username = config.auth.get_user_from_email(email)
+            if username is None:
+                raise AuthError('Account matching e-mail not found.')
+            user = config.auth.user_get_record(username)
+            from uuid import uuid4
+            code = uuid4().hex
+            user['email_forgot_code'] = [ datetime.datetime.utcnow(), code ]
+
+            from . import smail
+            smail.send_mail(
+                email
+                , 'Forgot Password'
+                , "You've indicated you forgot your password.  If that is true, click the following link to reset it.  Otherwise, you may disregard this e-mail.\r\n\r\n{link}".format(
+                    link=url_add_parms(cherrypy.url('forgot_password_response'), { 'redirect': redirect, 'code': code, 'user': username })
+                    )
+                )
+        except AuthError as e:
+            time.sleep(0.1)
+            error = str(e)
+
+        if not error:
+            error = "An e-mail has been sent to {email} with a link to reset your password.".format(email=email)
+        raise cherrypy.HTTPRedirect(url_add_parms('login', { 'redirect': redirect, 'error': error }))
+
+    @cherrypy.expose
+    def forgot_password_response(self, user, code, redirect):
+        error = 'Unknown error'
+        try:
+            u = config.auth.user_get_record(user)
+            ucode = u.get('email_forgot_code')
+            if ucode is None:
+                raise AuthError('Unknown request')
+            if (datetime.datetime.utcnow() - ucode[0]).days >= 1:
+                raise AuthError('Unknown request')
+            if code != ucode[1]:
+                raise AuthError('Bad access code')
+
+            del u['email_forgot_code']
+
+            #OK!
+            config.auth.login(user, forgotpass=True)
+            raise cherrypy.HTTPRedirect(url_add_parms('change_password', { 'redirect': redirect, 'error': 'Please enter a new password' }))
+
+        except AuthError as e:
+            error = str(e)
+
+        raise cherrypy.HTTPRedirect(url_add_parms('login', { 'redirect': redirect, 'error': error }))
+
+
+    @cherrypy.expose
     @groups('auth')
     def change_password(self, **kwargs):
         error = kwargs.get('error', '')
         redirect = kwargs.get('redirect', '')
+
+        fresh_login = config.auth.login_is_admin()
+
+        if not fresh_login:
+            raise cherrypy.HTTPRedirect(
+                url_add_parms(
+                    'login'
+                    , { 
+                        'redirect': url_add_parms(cherrypy.url('change_password'), { 'redirect': redirect, 'error': 'Now enter your new password.' })
+                        , 'error': 'Please confirm your login to modify your account.'
+                        , 'admin': 'true'
+                        }
+                    )
+                )
+
         if cherrypy.request.method.upper() == 'POST':
             try:
-                if 'oldpass' in kwargs:
-                    if config.auth.test_password(cherrypy.user.name, kwargs['oldpass']) is None:
-                        raise AuthError('Incorrect password')
                 if kwargs['newpass'] != kwargs['newpass2']:
                     raise AuthError('New passwords do not match')
 
@@ -294,11 +391,6 @@ original destination</a></p>""".format(redirect)
             except AuthError as ae:
                 error = str(ae)
 
-        oldpass = ''
-        password = config.auth.get_user_password(cherrypy.user.name)
-        if password is not None:
-            oldpass = '<tr><td>Old Password</td><td><input type="password" name="oldpass" /></td></tr>'
-
         return """
 <div class="lg_auth_form">
 <span style="color:#ff0000;" class="lg_auth_error">{error}</span>
@@ -307,7 +399,6 @@ original destination</a></p>""".format(redirect)
   <p>
     Change Password:
     <table>
-      {oldpass}
       <tr><td>New Password</td><td><input type="password" name="newpass" /></td></tr>
       <tr><td>New Password (again)</td><td><input type="password" name="newpass2" /></td></tr>
       <tr><td><input type="submit" value="Submit" /></td></tr>
@@ -315,16 +406,16 @@ original destination</a></p>""".format(redirect)
   </p>
 </form>
 </div>
-        """.format(oldpass=oldpass, error=error, redirect=redirect)
+        """.format(error=error, redirect=redirect)
 
     @cherrypy.expose
     @method_filter(methods=['POST'])
-    def login_password(self, username, password, redirect=None):
+    def login_password(self, username, password, redirect=None, admin=False):
         #Case insensitive usernames
         username = username.lower()
         username = config.auth.test_password(username, password)
         if username is not None:
-            config.auth.login(username)
+            config.auth.login(username, admin=admin)
             self.login_redirect(redirect)
         raise cherrypy.HTTPRedirect(
             url_add_parms(
@@ -339,7 +430,7 @@ original destination</a></p>""".format(redirect)
         """
         username = config.auth.get_user_from_openid(url)
         if username is not None:
-            config.auth.login(username)
+            config.auth.login(username, admin=kwargs.get('admin', False))
             self.login_redirect(redirect)
 
         #No known user has that openID... ask if they want to register,

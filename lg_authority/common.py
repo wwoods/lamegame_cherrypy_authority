@@ -56,6 +56,11 @@ config.update({
     #log in.  Use None for no warning.  Only users with passwords (not openid
     #users) will be prompted.
     ,
+    'site_admin_login_window': 120
+    #Seconds after reauthentication that the administrative window closes.
+    #Used for things like changing the user's password or adding a new 
+    #e-mail address.
+    ,
     'site_storage': 'ram'
     #The storage backend for the auth framework.  Essentially, we use 
     #a namespaced key-value store with expiration times on the namespaces.
@@ -74,6 +79,18 @@ config.update({
     ,
     'site_storage_clean_freq': 60
     #Minutes between cleaning up expired site storage.
+    ,
+    'site_email': {
+        'smtpserver': '127.0.0.1'
+        ,'smtpport': 25
+        ,'smtpssl': False
+        ,'smtpuser': None
+        ,'smtppass': None
+        ,'default': 'Site <test@example.com>'
+        }
+    #Not *strictly* required (set to None for no email), but enables
+    #functionality like e-mail registration and forgot password resets via
+    #email.
     ,
     'site_user_list': {
         'admin': {
@@ -109,11 +126,6 @@ config.update({
         'subject': email_reg_default_subject
         ,'body': email_reg_default_body
         ,'from': 'Site Registration <test@example.com>'
-        ,'smtpserver': '127.0.0.1'
-        ,'smtpport': 25
-        ,'smtpssl': False
-        ,'smtpuser': None
-        ,'smtppass': None
         }
     #Config items for the specific 
     ,

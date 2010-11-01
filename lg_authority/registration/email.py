@@ -3,6 +3,7 @@ from uuid import uuid4
 
 from .common import *
 from ..common import *
+from .. import smail
 
 class EmailRegistrar(object):
     def __init__(self, conf):
@@ -43,32 +44,12 @@ class EmailRegistrar(object):
             )
 
         #Send email
-        import smtplib
-        frm = self.conf['from']
-
-        message = """\
-From: {0}
-To: {1}
-Subject: {subject}
-
-{body}
-""".format(frm, email.replace('\n', '')
-            , subject=subject, body=body
+        smail.send_mail(
+            email
+            ,subject
+            ,body
+            ,frm=self.conf.get('from')
             )
-
-        server = self.conf.get('smtpserver')
-        port = self.conf.get('smtpport') or 25
-        use_ssl = self.conf.get('smtpssl')
-        if use_ssl:
-            s = smtplib.SMTP_SSL(server, port)
-        else:
-            s = smtplib.SMTP(server, port)
-        user = self.conf.get('smtpuser')
-        if user:
-            password = self.conf.get('smtppass')
-            s.login(user, password)
-        s.sendmail(frm, [email], message)
-        s.quit()
 
         #Email sent OK, put in the holder
         config.auth.user_create_holder(uname, uargs)
