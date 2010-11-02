@@ -135,7 +135,7 @@ class SlateStorage(object): #PY3 , metaclass=cherrypy._AttributeDocstring):
         """Returns the number of slates whose names fall (inclusively)
         between start and end in the given section.
         """
-        return len(cls.find_slates_between(section, start, end))
+        return len(cls.find_between(section, start, end))
 
     @classmethod
     def find_between(cls, section, start, end, limit=None, skip=None):
