@@ -4,6 +4,7 @@ try:
 except ImportError:
     import pickle
 from .common import *
+from ..slates import Slate
 
 class MongodbStorage(SlateStorage):
     """Storing slates in MongoDb.
@@ -16,93 +17,145 @@ class MongodbStorage(SlateStorage):
             appended.  This is not the collection that is actually created.
     """
 
-    def __init__(self, section, name, timeout, force_timeout):
-        self.section = self._get_section(section)
-        self.name = name
-        self._cache = { 'auth': None }
-        
+    def __init__(self, section, id, timeout, force_timeout):
+        self.section = section
+        self.id = id
+        self.timeout = timeout
+        self.force_timeout = force_timeout
+        self._section = self._get_section(self.section)
+        self._conf = self.get_section_config()
+    
+    def _expired(self):
+        """Call to set this Slate's local state as expired"""
+        self.expired = True
+        self._id = None
+        for j in self.cache.keys():
+            self.cache[j] = missing
+
+    def _access(self):
+        """Called before access of any type"""
+        if hasattr(self, '_first_access'):
+            return
+        self._first_access = True
+
         get_fields = {
             '_id': 1
             ,'timeout': 1
             ,'expire': 1
-            ,'data.auth': 1
             }
-        core = self.section.find_one({ 'name': self.name }, get_fields)
+        dcache = self._conf.get('cache', [])
+        for field in dcache:
+            get_fields['data.' + field] = 1
+        core = self._section.find_one({ 'name': self.id }, get_fields)
         now = datetime.datetime.utcnow()
 
+        self.cache = dict([ (f, missing) for f in dcache ])
+
         if core is None or core.get('expire', now) < now:
+            self._expired()
+            if core is not None:
+                self._id = core['_id']
+            log('Loaded new {1}slate: {0}'.format(
+                self.id
+                , '(expired; overwrite) '.format(self._id) if self._id is not None else ''
+                ))
+        else:
+            self.expired = False
+            self._id = core['_id']
+            if not self.force_timeout:
+                self.timeout = core['timeout']
+            data = core.get('data', {})
+            for k,v in data.items():
+                self.cache[k] = self._get(k, v)
+            self.expiry = core.get('expire', None)
+            log('Loaded slate {1} with {0}'.format(self.cache, self.id))
+
+    def _write(self, fields=None):
+        """Called before any write operation to setup the storage.
+        Implicitly calls _access(), then writes either a brand
+        new record or updates the old one, depending on expired status.
+
+        fields may be set to a dict to also set those values.
+        """
+        self._access()
+
+        fields = fields or {}
+
+        for k,v in fields.items():
+            self.cache[k] = v
+
+        if self.expired:
             new_dict = {
-                'name': self.name
-                ,'timeout': timeout
+                'name': self.id
+                ,'timeout': self.timeout
                 ,'data': {}
                 }
-            if timeout is not None:
-                new_dict['expire'] = now + datetime.timedelta(minutes=timeout)
-            if core is not None:
-                new_dict['_id'] = core['_id']
-            self.section.save(new_dict)
+            if self.timeout is not None:
+                new_dict['expire'] = datetime.datetime.utcnow() + datetime.timedelta(seconds=self.timeout)
+            if self._id is not None:
+                new_dict['_id'] = self._id
+            for k,v in fields.items():
+                new_dict['data'][k] = self._set(k,v)
+            self._section.save(new_dict)
             self._id = new_dict['_id']
+            self.expired = False
         else:
-            self._id = core['_id']
-            self._cache.update(core.get('data', {}))
+            updates = {}
+            sets = updates['$set'] = {}
+            unsets = updates['$unset'] = {}
 
-            #We also have to handle the case where timeout
-            #has changed from/to None
-            new_exp = missing
-            if force_timeout:
-                new_exp = timeout
+            if self.force_timeout:
+                sets['timeout'] = self.timeout
+            if self.timeout is not None:
+                sets['expire'] = datetime.datetime.utcnow() + datetime.timedelta(seconds=self.timeout)
             else:
-                if 'expire' in core:
-                    timeout = core.get('timeout', timeout)
-                    half = core['expire'] - datetime.timedelta(minutes=timeout//2)
-                    if half < now:
-                        new_exp = timeout
+                unsets['expire'] = 1
 
-            if new_exp is not missing:
-                updates = {
-                    '$set': {
-                        'timeout': new_exp
-                        }
-                    }
-                if new_exp is not None:
-                    updates['$set']['expire'] = now + datetime.timedelta(minutes=new_exp)
+            for k,v in fields.items():
+                if v is missing:
+                    unsets['data.' + k] = 1
                 else:
-                    updates['$unset'] = { 'expire': 1 }
-                self.section.update({ '_id': self._id }, updates)
+                    sets['data.' + k] = self._set(k, v)
+
+            self._section.update({ '_id': self._id }, updates)
 
     def __str__(self):
-        return "PYMONGO{0}".format(self._id)
+        return "PYMONGO({0})".format(self.id)
 
     def __repr__(self):
         return str(self)
 
+    def touch(self):
+        self._write()
+
     def set(self, key, value):
-        if key in self.section.lgauth_conf_indexed:
+        self._write({ key: value })
+
+    def _set(self, key, value):
+        """Translates a python value into one suitable for mongodb storage"""
+        if key in self._section.lgauth_conf_indexed:
             pickled = value
         else:
             pickled = self.binary(pickle.dumps(value))
 
-        if key in self._cache:
-            self._cache[key] = pickled
-
-        self.section.update(
-            { '_id': self._id }
-            , { '$set': { 'data.' + key: pickled } }
-            )
+        return pickled
 
     def get(self, key, default):
         if not isinstance(key, basestring):
             raise ValueError("Key must be string; was {0}".format(key))
-        if key in self._cache:
-            result = self._cache[key]
-            if result is None:
+
+        self._access()
+        if self.expired:
+            return default
+        if key in self.cache:
+            result = self.cache[key]
+            if result is missing:
                 result = default
         else:
-            doc = self.section.find_one({ '_id': self._id }, { 'data.' + key: 1 })
+            doc = self._section.find_one({ '_id': self._id }, { 'data.' + key: 1 })
             result = doc.get('data', {}).get(key, default)
-
-        if result is not default:
-            result = self._get(key, result)
+            if result is not default:
+                result = self._get(key, result)
         return result
 
     def _get(self, key, value):
@@ -110,46 +163,66 @@ class MongodbStorage(SlateStorage):
         python objects (from pickle).
         """
         result = value
-        if key not in self.section.lgauth_conf_indexed:
+        if key not in self._section.lgauth_conf_indexed:
             result = pickle.loads(result)
         return result
 
+    def pop(self, key, default):
+        result = self.get(key, default)
+        self._section.update({ '_id': self._id }, { '$unset': { 'data.' + key: 1 } })
+        return result
+
+    def clear(self):
+        self._write()
+        self._section.update({ '_id': self._id }, { '$set': { 'data': {} } })
+
+    def items(self):
+        self._access()
+        if self.expired:
+            return []
+        data = self._section.find_one({ '_id': self._id }, { 'data': 1 })
+        itms = data['data'].items()
+        return [ (k,self._get(k,v)) for k,v in itms ]
+
+    def expire(self):
+        self._access()
+        self._section.remove(self._id)
+        self._expired()
+
+    def is_expired(self):
+        self._access()
+        return self.expired
+
+    def time_to_expire(self):
+        self._access()
+        if self.expired:
+            return None
+        if not hasattr(self, 'expiry'):
+            return None
+        diff = self.expiry - datetime.datetime.utcnow()
+        diff = diff.days * 3600 * 24 + diff.seconds
+        return max(0, diff)
+
     @classmethod
-    def find_slates_with(cls, section, key, value):
+    def find_with(cls, section, key, value):
         results = []
-        section = cls._get_section(section)
-        for result in section.find({ 'data.' + key: value }, { 'name': 1 }):
-            results.append(result['name'])
+        _section = cls._get_section(section)
+        for result in _section.find({ 'data.' + key: value }, { 'name': 1 }):
+            results.append(Slate(section, result['name']))
         return results
 
     @classmethod
-    def find_slates_between(cls, section, start, end, limit=None, skip=None):
+    def find_between(cls, section, start, end, limit=None, skip=None):
         result = []
-        section = cls._get_section(section)
-        cursor = section.find(
-            { 'name': { '$gte': start, '$lte': end } }, { 'name': 1 }
+        _section = cls._get_section(section)
+        cursor = _section.find(
+            { 'name': { '$gte': start, '$lt': end } }, { 'name': 1 }
             ).sort(
             [ ('name',1) ]
             )
         skip = skip or 0
         limit = skip + limit if limit else None
-        return [ d['name'] for d in cursor[skip:limit] ]
-
-    def pop(self, key, default):
-        result = self.get(key, default)
-        self.section.update({ '_id': self._id }, { '$unset': { 'data.' + key: 1 } })
-        return result
-
-    def clear(self):
-        self.section.update({ '_id': self._id }, { '$unset': { 'data': 1 } })
-
-    def items(self):
-        data = self.section.find_one({ '_id': self._id }, { 'data': 1 })
-        itms = data['data'].items()
-        return [ (k,self._get(k,v)) for k,v in itms ]
-
-    def expire(self):
-        self.section.remove(self._id)
+        return [ Slate(section, d['name']) for d in cursor[skip:limit] ]
 
     @classmethod
     def setup(cls, conf):
@@ -177,24 +250,13 @@ class MongodbStorage(SlateStorage):
         result.ensure_index([ ('name', 1) ], unique=True, background=True)
         result.ensure_index([ ('expire', 1) ], background=True)
 
-        options = cls.get_section_config(section)
+        options = cls._get_section_config(section)
         result.lgauth_conf_indexed = options.get('index_lists', [])
         for index in result.lgauth_conf_indexed:
             result.ensure_index([ ('data.' + index, 1) ], background=True)
 
         cls.collections[section] = result
         return result
-
-    @classmethod
-    def is_expired(cls, section, name):
-        section = cls._get_section(section)
-        doc = section.find_one({ 'name': name }, { 'expire': 1 })
-        if doc is None:
-            return True
-        now = datetime.datetime.utcnow()
-        if doc.get('expire', now) < now:
-            return True
-        return False
 
     @classmethod
     def clean_up(cls):

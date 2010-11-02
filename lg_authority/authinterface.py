@@ -28,11 +28,10 @@ class AuthInterface(object):
         if timeout is not missing:
             kwargs = { 'timeout': timeout, 'force_timeout': True }
 
-        sname = 'user-' + username
-        if not Slate.is_expired('user', sname):
+        user = Slate('user', 'user-' + username)
+        if not user.is_expired():
             raise AuthError('User already exists')
 
-        user = Slate('user', sname, **kwargs)
         user.update(data)
        
     def user_create_holder(self, username, data):
@@ -44,53 +43,60 @@ class AuthInterface(object):
         if config['site_registration_timeout'] != None:
             kwargs['timeout'] = config['site_registration_timeout'] * 60 * 24
             
-        sname = 'user-' + username
-        if not Slate.is_expired('user', sname):
+        sname = Slate('user', 'user-' + username)
+        if not sname.is_expired():
             raise AuthError('Username already taken')
             
-        pname = 'userhold-' + username
-        if not Slate.is_expired('user', pname):
+        pname = Slate('user', 'userhold-' + username, **kwargs)
+        if not pname.is_expired():
+            raise AuthError('Username already taken')
+
+        oname = Slate('user', 'userold-' + username)
+        if not oname.is_expired():
             raise AuthError('Username already taken')
             
-        pslate = Slate('user', pname, **kwargs)
-        pslate.update(data)
+        #Make the holder
+        pname.update(data)
 
     def user_exists(self, username):
-        userrec = 'user-' + username
-        userhold = 'userhold-' + username
+        userrec = Slate('user', 'user-' + username)
+        userhold = Slate('user', 'userhold-' + username)
+        userold = Slate('user', 'userold-' + username)
 
-        if not Slate.is_expired('user', userrec):
+        if not userrec.is_expired():
             return True
-        if not Slate.is_expired('user', userhold):
+        if not userhold.is_expired():
+            return True
+        if not userold.is_expired():
             return True
         return False
 
     def user_get_holder(self, username):
         pname = 'userhold-' + username
-        return Slate.lookup('user', pname)
+        return Slate('user', pname)
 
     def user_promote_holder(self, holder):
         """Promotes the passed holder slate to a full user"""
-        uname = 'user-' + holder.name[len('userhold-'):]
+        uname = 'user-' + holder.id[len('userhold-'):]
         uargs = {}
         for k,v in holder.items():
             uargs[k] = v
 
-        if not Slate.is_expired('user', uname):
+        user = Slate('user', uname)
+        if not user.is_expired():
             raise AuthError('User already activated')
 
-        user = Slate('user', uname)
         user.update(uargs)
         holder.expire()
 
     def user_get_inactive(self, username):
         pname = 'userold-' + username
-        return Slate.lookup('user', pname)
+        return Slate('user', pname)
 
     def user_activate(self, username):
         pname = 'userold-' + username
-        inact = Slate.lookup('user', pname)
-        if inact is None:
+        inact = Slate('user', pname)
+        if inact.is_expired():
             raise AuthError('Cannot activate non-inactive user')
 
         items = inact.todict()
@@ -103,8 +109,8 @@ class AuthInterface(object):
 
     def user_deactivate(self, username):
         oname = 'user-' + username
-        act = Slate.lookup('user', oname)
-        if act is None:
+        act = Slate('user', oname)
+        if act.is_expired():
             raise AuthError('Cannot deactive non-active user')
 
         items = act.todict()
@@ -118,17 +124,17 @@ class AuthInterface(object):
     def user_get_record(self, username):
         """Returns the record for the given username (or None).
         """
-        slate = Slate.lookup('user', 'user-' + username)
+        slate = Slate('user', 'user-' + username)
         return slate
 
     def get_user_from_email(self, email):
         """Returns the username for the given email, or None.
         """
-        result = config.storage_class.find_slates_with('user', 'emails', email)
-        if len(result) == 1 and result[0].startswith('user-'):
-            return result[0][len('user-'):]
+        result = config.Slate.find_with('user', 'emails', email)
+        if len(result) == 1 and result[0].id.startswith('user-'):
+            return result[0].id[len('user-'):]
         elif len(result) == 1: #Inactive user
-            return None
+            raise AuthError('This e-mail is in use by an inactive user')
         elif len(result) == 0:
             return None
         else:
@@ -137,16 +143,16 @@ class AuthInterface(object):
     def get_user_from_openid(self, openid_url):
         """Returns the username for the given openid_url, or None.
         """
-        result = config.storage_class.find_slates_with('user', 'auth_openid', openid_url)
+        result = config.Slate.find_with('user', 'auth_openid', openid_url)
         if len(result) == 0:
             return None
         elif len(result) == 1:
-            if result[0].startswith('user-'):
-                return result[0][len('user-'):]
-            #Probably an inactive account.
-            return None
+            if result[0].id.startswith('user-'):
+                return result[0].id[len('user-'):]
+            #Probably a disabled account or holder
+            raise AuthError('This OpenID is in use by an inactive user')
         else:
-            raise AuthError('More than one user has this OpenID')
+            raise AuthError('This OpenID is in use')
 
     def get_user_password(self, username):
         """Returns a dict consisting of a "date" element that is the UTC time
@@ -155,15 +161,17 @@ class AuthInterface(object):
         Returns None if the user specified does not have a password to
         authenticate through or does not exist.
         """
-        user = Slate.lookup('user', 'user-' + username)
-        return user and user.get('auth_password', None)
+        user = Slate('user', 'user-' + username)
+        if user.is_expired():
+            return None
+        return user.get('auth_password', None)
 
     def set_user_password(self, username, new_pass):
         """Updates the given user's password.  new_pass is a tuple
         (algorithm, hashed) that is the user's new password.
         """
-        user = Slate.lookup('user', 'user-' + username)
-        if user is None:
+        user = Slate('user', 'user-' + username)
+        if user.is_expired():
             raise ValueError('User not found')
         user['auth_password'] = { 'date': datetime.datetime.utcnow(), 'pass': new_pass }
 
@@ -175,8 +183,8 @@ class AuthInterface(object):
         _get_group_name because get_group_name automatically handles user-,
         any, and auth groups
         """
-        group = Slate.lookup('user', 'group-' + groupid)
-        if group is not None:
+        group = Slate('user', 'group-' + groupid)
+        if not group.is_expired():
             return group['name']
         return 'Unnamed ({0})'.format(groupid)
 
@@ -186,12 +194,11 @@ class AuthInterface(object):
         if timeout is not missing:
             kwargs = { 'timeout': timeout, 'force_timeout': True }
 
-        sname = 'group-' + groupid
-        if not Slate.is_expired('user', sname):
+        sname = Slate('user', 'group-' + groupid, **kwargs)
+        if not sname.is_expired():
             raise AuthError('Group already exists')
 
-        group = Slate('user', sname, **kwargs)
-        group.update(data)
+        sname.update(data)
 
     def login(self, username, admin=False):
         """Logs in the specified username.  Returns the user record."""

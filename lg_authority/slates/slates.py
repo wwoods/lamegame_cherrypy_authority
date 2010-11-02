@@ -4,10 +4,6 @@ We use cherrypy.request to store some convenient variables as
 well as data about the session for the current request. Instead of
 polluting cherrypy.request we use a Session object bound to
 cherrypy.session to store these variables.
-
-Also provides cherrypy.slate[] to retrieve a named slate.
-
-Call cherrypy.session.expire() to force a session to expire.
 """
 
 import datetime
@@ -28,87 +24,112 @@ from cherrypy.lib import httputil
 from ..common import *
 
 class Slate(object): #PY3 , metaclass=cherrypy._AttributeDocstrings):
-    """A CherryPy dict-like Slate object (one per request for session state, as well as any number of named slates).
+    """A CherryPy dict-like Slate object (one per request for session state, 
+    as well as any number of named slates).
 
-    Writing is accomplished only when set() is called, setdefault() is called, or an item is written (Slate['key'] = 'value').
+    Slates are entirely lazy-loaded, meaning there should be no network
+    overhead for calling Slate('section', 'name').  The writing of timestamps
+    is also lazily written, meaning slates will expire after their specified 
+    timeout unless touch() is called.
+
+    Writing is accomplished only when a key's value is set directly - setting
+    a key to an object and then altering the object will not save the
+    changes to the object.
+
+    The general network usage for a slate's life is:
+
+    Slate():
+        None
+    First access call:
+        Fetch timeout, expiration, any attributes in the 'cache' area of the
+            site_storage_sections_{section} configuration.
+        If expired, mark as expired but don't do anything.
+    Each read call:
+        If not expired, fetch specified data.  Else return default.
+    Each write call:
+        If expired, create new Slate storage with specified data and new
+            expiration information.  Clear expired flag.
+        Else, write new expiration and specified data
     """
     
-    name = None
-    name__doc = """The slate name/ID.  Each unique name corresponds to a unique slate.  Fixation does not apply to slates - for instance, if a slate with the name 'user-testuser' is expired, then its data is erased, but that is still the name of the slate.
+    id = None
+    id__doc = """The slate name/ID.  Each unique name corresponds to a unique slate.  Fixation does not apply to slates - for instance, if a slate with the name 'user-testuser' is expired, then its data is erased, but that is still the name of the slate.
     """
     
     timeout = None
-    timeout__doc = "Number of minutes after which to delete slate data, or None for no expiration.  The default for named slates is no expiration.  The default for sessions is one hour."
+    timeout__doc = "Number of seconds after which to delete slate data, or None for no expiration.  The default is no expiration."
 
     storage = None
     storage__doc = "Storage instance for this slate"
     
-    def __init__(self, section, name, timeout=missing, force_timeout=False):
-        """Initializes the Slate, and wipes expired data if necessary.
-        Also updates the Slate's Expiration date if needed.
-
-        Will only update the Slate's timeout if either the slate is new (or
-        previously expired), or the force_timeout parameter is set to True.
+    def __init__(self, section, id, timeout=missing, force_timeout=False):
+        """Initializes the Slate, but does no work.
         """
         self.section = section
-        self.name = name
-        self._data = {}
-        
+        self.id = id
+
         if not timeout is missing:
             self.timeout = timeout
 
-        self.storage = config.storage_class(self.section, self.name, self.timeout, force_timeout)
-        log('Slate loaded: {0}'.format(repr(self.storage)))
+        self.storage = config.storage_class(self.section, self.id, self.timeout, force_timeout)
 
-    @classmethod 
-    def lookup(cls, section, name):
-        """Fetch the specified slate, but if it does not exist or is expired,
-        return None instead of creating it.
+    def is_expired(self):
+        """Returns true if the Slate is expired or non-existant; otherwise
+        returns false.
         """
-        if cls.is_expired(section, name):
-            return None
-        return Slate(section, name)
+        return self.storage.is_expired()
+
+    def time_to_expire(self):
+        """Returns the number of seconds before this Slate will expire.  This
+        value is not refreshed after the first read!
+
+        Returns None if already expired.  The minimum numeric value returned
+        is 0.
+        """
+        return self.storage.time_to_expire()
+
+    def expire(self):
+        """Delete stored data; expire the session immediately."""
+        self.storage.expire()
+
+    def touch(self):
+        """Renew the expiration date for this Slate, without writing any
+        other data.
+        """
+        self.storage.touch()
 
     @classmethod
-    def is_expired(cls, section, name):
-        """Returns True if the given Slate identifier is expired or non-existant."""
-        return config.storage_class.is_expired(section, name)
-
-    @classmethod
-    def count_slates_with(cls, section, key, value):
+    def count_with(cls, section, key, value):
         """Return the number of slates who have value in the array keyed
         by key.  key must be in site_storage_sections_{section}'s index_lists
         parameter for the given section.
         """
-        return config.storage_class.count_slates_with(section, key, value)
+        return config.storage_class.count_with(section, key, value)
 
     @classmethod
-    def find_slates_with(cls, section, key, value):
-        """Return a list of slate names having value in the array keyed by
+    def find_with(cls, section, key, value):
+        """Return a list of slates having value in the array keyed by
         key.  key must be in site_storage_sections_{section}'s index_lists 
         parameter for the given section.
         """
-        return config.storage_class.find_slates_with(section, key, value)
+        return config.storage_class.find_with(section, key, value)
 
     @classmethod
-    def count_slates_between(cls, section, start, end):
+    def count_between(cls, section, start, end):
         """Returns the number of slates whose names are (inclusively) between
         start and end.
         """
-        return config.storage_class.count_slates_between(section, start, end)
+        return config.storage_class.count_between(section, start, end)
 
     @classmethod
-    def find_slates_between(cls, section, start, end, limit=None, skip=None):
-        """Return a list of slate names between start and end.  Optionally
-        limit the number of results returned and skip the first X.
+    def find_between(cls, section, start, end, limit=None, skip=None):
+        """Return a list of slates between start (inclusive) and end 
+        (exclusive).  Optionally limit the number of results returned and skip 
+        the first X.
         """
-        return config.storage_class.find_slates_between(
+        return config.storage_class.find_between(
             section, start, end, limit, skip
             )
-
-    def expire(self):
-        """Delete stored session data."""
-        self.storage.expire()
     
     def __getitem__(self, key):
         result = self.storage.get(key, missing)

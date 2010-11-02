@@ -15,8 +15,8 @@ else:
         """Uses Slates to handle openid authentication"""
 
         ns = "openid"
-        server_timeout = 10 #minutes until we forget about a server and its
-                            #associations.
+        server_timeout = 600 #seconds until we forget about a server and its
+                             #associations.
         assocs = "a-"
         nonces = "n-"
 
@@ -57,9 +57,10 @@ else:
                 return False
 
             anonce = str((str(server_url), int(timestamp), str(salt)))
-            if not Slate.is_expired(self.ns, self.nonces + anonce):
+            snonce = Slate(self.ns, self.nonces + anonce, nonce.SKEW)
+            if not snonce.is_expired():
                 return False
             else:
-                Slate(self.ns, self.nonces + anonce, nonce.SKEW // 60) #TODO add touch()
+                snonce.touch()
                 return True
 

@@ -1,4 +1,5 @@
-"""The session functionality of lg_authority/slates."""
+"""The session functionality of lg_authority/slates.
+"""
 
 import os
 import datetime
@@ -12,9 +13,6 @@ from .slates import Slate
 class Session(Slate):
     """A container that maps session ID's to an underlying slate."""
 
-    id = None
-    id__doc = """Session id.  Use Session.get_slate_name(id) to get the name of a slate with the specified id."""
-
     session_cookie = 'session_id'
     session_cookie__doc = """Name of cookie where session id is stored"""
 
@@ -25,19 +23,30 @@ class Session(Slate):
     originalid__doc = """Client-sent identifier for the session slate"""
 
     def __init__(self, id=None, **kwargs):
-        self.timeout = kwargs.pop('session_timeout', self.timeout)
+        self.timeout = kwargs.pop('session_timeout', self.timeout) * 60
         self.session_cookie = kwargs.get('session_cookie', self.session_cookie)
 
         self.originalid = id
         self.id = id
         #Check for expired session, and assign new identifier if
-        #necessary.
+        #necessary.  _test_id calls Slate.__init__
         self._test_id()
 
-        Slate.__init__(self, 'session', self.get_slate_name(), timeout=self.timeout)
+        #Check for the need to update the session's expiration date.
+        ttl = self.time_to_expire()
+        if ttl < self.timeout // 2:
+            self.touch()
+            self._update_cookie = True
 
         #The response cookie is set in init_session(), at the bottom of this
         #file.
+
+    def is_response_cookie_needed(self):
+        if self.id != self.originalid:
+            return True
+        if hasattr(self, '_update_cookie'):
+            return True
+        return False
 
     def expire(self):
         """Expires the session both client-side and slate-side"""
@@ -45,24 +54,20 @@ class Session(Slate):
 
         one_year = 60 * 60 * 24 * 365
         e = time.time() - one_year
+        cherrypy.serving.response.cookie[self.session_cookie] = 'expired'
         cherrypy.serving.response.cookie[self.session_cookie]['expires'] = httputil.HTTPDate(e)
-
-    def get_slate_name(self):
-        """Returns the slate name for this session id"""
-        return self.id
 
     def _test_id(self):
         """Test if we are expired.  If we are, assign a new id"""
-        if self.id is None or self._is_expired():
+        Slate.__init__(self, 'session', self.id, timeout=self.timeout)
+        if self.is_expired():
             while True:
                 self.id = self._generate_id()
-                if self._is_expired():
+                Slate.__init__(self, 'session', self.id, timeout=self.timeout)
+                if self.is_expired():
                     break
             log('Session {0} expired -> {1}'.format(self.originalid, self.id))
 
-    def _is_expired(self):
-        return Slate.is_expired('session', self.get_slate_name())
-        
     def _generate_id(self):
         """Return a new session id."""
         return binascii.hexlify(os.urandom(20)).decode('ascii')
@@ -107,7 +112,7 @@ def init_session(
     
     request = cherrypy.serving.request
     name = session_cookie = kwargs.get('session_cookie', Session.session_cookie)
-    cookie_timeout = kwargs.get('session_timeout', None)
+    cookie_timeout = kwargs.get('session_timeout', Session.timeout)
     
     # Check if request came with a session ID
     id = None
@@ -122,13 +127,14 @@ def init_session(
     # the requested session data.
     cherrypy.serving.session = sess = Session(id, **kwargs)
     
-    if not session_persistent:
-        # See http://support.microsoft.com/kb/223799/EN-US/
-        # and http://support.mozilla.com/en-US/kb/Cookies
-        cookie_timeout = None
-    set_response_cookie(path=session_path, path_header=session_path_header
-      , name=name
-      , timeout=cookie_timeout, domain=session_domain, secure=session_secure)
+    if sess.is_response_cookie_needed():
+        if not session_persistent:
+            # See http://support.microsoft.com/kb/223799/EN-US/
+            # and http://support.mozilla.com/en-US/kb/Cookies
+            cookie_timeout = None
+        set_response_cookie(path=session_path, path_header=session_path_header
+          , name=name
+          , timeout=cookie_timeout, domain=session_domain, secure=session_secure)
 
 
 def set_response_cookie(path=None, path_header=None, name='session_id',

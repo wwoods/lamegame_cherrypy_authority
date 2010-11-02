@@ -77,6 +77,11 @@ config.update({
     #Most sections do not need any options, but if you want anything
     #indexed, or admin-editable, then this is where you specify it.
     ,
+    'site_storage_sections_session': {
+        'cache': [ 'auth', 'authtime', 'authtime_admin' ]
+        }
+    #Session vars to be cached at first read.
+    ,
     'site_storage_clean_freq': 60
     #Minutes between cleaning up expired site storage.
     ,
@@ -154,6 +159,14 @@ config.update({
     #
     #If you use an app that does this, feel free to set its specific 
     #configuration to override_sessions: False
+    ,
+    'session_timeout': 60
+    #Minutes until a session expires; applicable only if override_sessions is
+    #True.
+    ,
+    'session_cookie': 'session_id'
+    #The cookie value used to read the session id.  Applicable only if 
+    #override_sessions is True.
     ,
     'user_slate_section': 'userslate'
     #The prefix for named slates for each user (only applicable when using

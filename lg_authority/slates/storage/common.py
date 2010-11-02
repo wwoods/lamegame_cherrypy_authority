@@ -9,17 +9,17 @@ class SlateStorage(object): #PY3 , metaclass=cherrypy._AttributeDocstring):
     name = None
     name__doc = "The slate's name"
 
-    def __init__(self, section, name, timeout, force_timeout):
-        """Initializes storage for a slate.  Should clear data if expired,
-        and update timestamp / timeout.
-
-        timeout may be None for no expiration.
-
+    def __init__(self, section, id, timeout, force_timeout):
+        """Initializes storage for a slate.  Shouldn't do any network activity.
+        
         If force_timeout is set, then the slate's timeout MUST be set to the
         specified timeout, even if the slate already exists.
+        """
+        raise NotImplementedError()
 
-        It is recommended (if possible) to download and cache the "auth" key's
-        value in the initial data request.
+    def touch(self):
+        """Touch the Slate; that is, update its expiration time but do not
+        write any other data.
         """
         raise NotImplementedError()
 
@@ -36,36 +36,6 @@ class SlateStorage(object): #PY3 , metaclass=cherrypy._AttributeDocstring):
         """Gets the given key, or if it does not exist, returns default"""
         raise NotImplementedError()
 
-    @classmethod
-    def count_slates_with(cls, section, key, value):
-        """Return the number of slate names having value in the array keyed
-        by key.  key must be in site_storage_sections_{section}'s index_lists
-        parameter.
-        """
-        return len(cls.find_slates_with(section, key, value))
-
-    @classmethod
-    def find_slates_with(cls, section, key, value):
-        """Return a list of slate names having value in the array keyed by
-        key.  key must be in site_storage_sections_{section}' index_lists 
-        parameter for the given section.
-        """
-        raise NotImplementedError()
-
-    @classmethod
-    def count_slates_between(cls, section, start, end):
-        """Returns the number of slates whose names fall (inclusively)
-        between start and end in the given section.
-        """
-        return len(cls.find_slates_between(section, start, end))
-
-    @classmethod
-    def find_slates_between(cls, section, start, end, limit=None, skip=None):
-        """Return a list of slate names between start and end, optionally
-        limiting the number of results and/or skipping the first X results.
-        """
-        raise NotImplementedError()
-        
     def pop(self, key, default):
         """Deletes and returns the value for the given key, or if it
         does not exist, returns default
@@ -83,6 +53,19 @@ class SlateStorage(object): #PY3 , metaclass=cherrypy._AttributeDocstring):
 
     def expire(self):
         """Expire and/or delete the storage for a slate"""
+        raise NotImplementedError()
+
+    def is_expired(self):
+        """Return True if this Slate is expired, or False otherwise."""
+        raise NotImplementedError()
+
+    def time_to_expire(self):
+        """Return the cached (as of first data access) number of seconds
+        before this Slate will expire.
+
+        Return None if it is already expired or will never expire.  The
+        minimum numeric value returned is zero.
+        """
         raise NotImplementedError()
 
     def keys(self):
@@ -106,6 +89,19 @@ class SlateStorage(object): #PY3 , metaclass=cherrypy._AttributeDocstring):
             result = default
         return result
 
+    def is_expired(self):
+        """Return True if this given slate is expired or does not exist"""
+        raise NotImplementedError()
+
+    def get_section_config(self):
+        """Instance method to get the section config"""
+        return config.get('site_storage_sections_' + self.section, {})
+
+    @classmethod
+    def _get_section_config(cls, section):
+        """Class method to get the section config"""
+        return config.get('site_storage_sections_' + section, {})
+
     @classmethod
     def setup(cls, config):
         """Set up slate storage medium according to passed config"""
@@ -119,11 +115,32 @@ class SlateStorage(object): #PY3 , metaclass=cherrypy._AttributeDocstring):
         raise NotImplementedError()
 
     @classmethod
-    def is_expired(cls, section, name):
-        """Return True if the given slate is expired or does not exist"""
+    def count_with(cls, section, key, value):
+        """Return the number of slate names having value in the array keyed
+        by key.  key must be in site_storage_sections_{section}'s index_lists
+        parameter.
+        """
+        return len(cls.find_with(section, key, value))
+
+    @classmethod
+    def find_with(cls, section, key, value):
+        """Return a list of slates having value in the array keyed by
+        key.  key must be in site_storage_sections_{section}' index_lists 
+        parameter for the given section.
+        """
         raise NotImplementedError()
 
     @classmethod
-    def get_section_config(cls, section):
-        return config.get('site_storage_sections_' + section, {})
+    def count_between(cls, section, start, end):
+        """Returns the number of slates whose names fall (inclusively)
+        between start and end in the given section.
+        """
+        return len(cls.find_slates_between(section, start, end))
 
+    @classmethod
+    def find_between(cls, section, start, end, limit=None, skip=None):
+        """Return a list of slates between start and end, optionally
+        limiting the number of results and/or skipping the first X results.
+        """
+        raise NotImplementedError()
+        

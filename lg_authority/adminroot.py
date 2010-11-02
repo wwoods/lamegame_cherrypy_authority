@@ -24,20 +24,20 @@ class AdminRoot(object):
     @cherrypy.expose
     def index(self):
         maxusers = 100
-        ulist = config.Slate.find_slates_between('user', 'user-', 'user.', maxusers)
-        unames = [ u[5:] for u in ulist ]
+        ulist = config.Slate.find_between('user', 'user-', 'user.', maxusers)
+        unames = [ u.id[5:] for u in ulist ]
         users = [ 
             '<li><a href="edit_user?user={0}">{0}</a></li>'.format(u) for u in unames 
             ]
         maxiusers = 100
-        ulist = config.Slate.find_slates_between('user', 'userhold-', 'userhold.', maxiusers)
-        unames = [ u[9:] for u in ulist ]
+        ulist = config.Slate.find_between('user', 'userhold-', 'userhold.', maxiusers)
+        unames = [ u.id[9:] for u in ulist ]
         iusers = [
             '<li><a href="edit_user?user={0}">{0}</a></li>'.format(u) for u in unames
             ]
 
-        ulist = config.Slate.find_slates_between('user', 'userold-', 'userold.', maxiusers)
-        unames = [ u[8:] for u in ulist ]
+        ulist = config.Slate.find_between('user', 'userold-', 'userold.', maxiusers)
+        unames = [ u.id[8:] for u in ulist ]
         inusers = [
             '<li><a href="edit_user?user={0}">{0}</a></li>'.format(u) for u in unames
             ]
@@ -66,15 +66,15 @@ class AdminRoot(object):
         inactive = False
         urec = config.auth.user_get_record(user)
         body = []
-        if urec is None:
+        if urec.is_expired():
             holder = True
             urec = config.auth.user_get_holder(user)
-        if urec is None:
+        if urec.is_expired():
             holder = False
             inactive = True
             urec = config.auth.user_get_inactive(user)
 
-        if urec is not None:
+        if not urec.is_expired():
             if not holder and not inactive:
                 body.append('<p>Active User</p>')
                 body.append('<p>')

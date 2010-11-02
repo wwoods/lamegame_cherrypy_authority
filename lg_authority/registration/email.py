@@ -26,7 +26,7 @@ class EmailRegistrar(object):
         #1. It can't be a unique index - some auth types don't have email
         #2. There are no security concerns; the user still controls
         #    the email either way if they can register it.
-        if len(config.Slate.find_slates_with('user', 'emails', email)) != 0:
+        if len(config.Slate.find_with('user', 'emails', email)) != 0:
             raise AuthError('Email already registered')
 
         subject = self.conf['subject']
@@ -56,7 +56,7 @@ class EmailRegistrar(object):
 
     def response_link(self, username=None, key=None, redirect=None):
         holder = config.auth.user_get_holder(username)
-        if holder is not None and key == holder['email_code']:
+        if not holder.is_expired() and key == holder.get('email_code'):
             del holder['email_code']
             config.auth.user_promote_holder(holder)
             config.auth.login(username)

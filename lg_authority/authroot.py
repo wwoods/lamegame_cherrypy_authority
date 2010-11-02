@@ -428,10 +428,15 @@ original destination</a></p>""".format(redirect)
         """Handles an openid login.  
         This is called directly by a descendent of the AuthRoot path.
         """
-        username = config.auth.get_user_from_openid(url)
-        if username is not None:
-            config.auth.login(username, admin=kwargs.get('admin', False))
-            self.login_redirect(redirect)
+        try:
+            username = config.auth.get_user_from_openid(url)
+            if username is not None:
+                config.auth.login(username, admin=kwargs.get('admin', False))
+                self.login_redirect(redirect)
+        except AuthError as ae:
+            raise cherrypy.HTTPRedirect(
+                url_add_parms('../login', { 'error': str(ae), 'redirect': redirect or '' })
+                )
 
         #No known user has that openID... ask if they want to register,
         #if applicable.
