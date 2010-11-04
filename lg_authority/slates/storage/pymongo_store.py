@@ -6,7 +6,7 @@ except ImportError:
 from .common import *
 from ..slates import Slate
 
-class MongodbStorage(SlateStorage):
+class PymongoStorage(SlateStorage):
     """Storing slates in MongoDb.
 
     Available params in storage_conf:

@@ -63,7 +63,8 @@ config.update({
     ,
     'site_storage': 'ram'
     #The storage backend for the auth framework.  Essentially, we use 
-    #a namespaced key-value store with expiration times on the namespaces.
+    #a namespaced key-value store with expiration times on the namespaces for
+    #our general framework storage.
     ,
     'site_storage_conf': {
         }
