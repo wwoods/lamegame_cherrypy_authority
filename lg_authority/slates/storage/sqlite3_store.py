@@ -44,7 +44,7 @@ class Sqlite3Storage(SlateStorage):
         db = self._get_db()
         try:
             cur = db.cursor()
-            cur.execute("SELECT id,timeout,expire FROM {0} WHERE id = ?".format(self.section), (self.id,))
+            cur.execute("""SELECT id,timeout,expire FROM "{0}" WHERE id = ?""".format(self.section), (self.id,))
             core = cur.fetchone()
         finally:
             cur.close()
@@ -69,7 +69,7 @@ class Sqlite3Storage(SlateStorage):
 
             #Fetch cached elements
             for field in self.cache.keys():
-                cur.execute("SELECT key,value FROM {0}_data WHERE id = ? AND key = ?".format(self.section), (self.id,field))
+                cur.execute("""SELECT key,value FROM "{0}_data" WHERE id = ? AND key = ?""".format(self.section), (self.id,field))
                 val = cur.fetchone()
                 if val is not None:
                     self.cache[field] = self._get(field, val[1])
@@ -101,22 +101,22 @@ class Sqlite3Storage(SlateStorage):
                 if self.timeout is not None:
                     new_vals[2] = datetime.datetime.utcnow() + datetime.timedelta(seconds=self.timeout)
 
-                cur.execute("INSERT INTO {0} (id,timeout,expire) VALUES (?,?,?)".format(self.section), new_vals)
+                cur.execute("""INSERT INTO "{0}" (id,timeout,expire) VALUES (?,?,?)""".format(self.section), new_vals)
             else:
                 new_vals = [self.timeout, None, self.id]
                 if self.timeout is not None:
                     new_vals[1] = datetime.datetime.utcnow() + datetime.timedelta(seconds=self.timeout)
-                cur.execute("UPDATE {0} SET timeout=?, expire=? WHERE id=?".format(self.section), new_vals)
+                cur.execute("""UPDATE "{0}" SET timeout=?, expire=? WHERE id=?""".format(self.section), new_vals)
 
             #Now update our values
             for k,v in fields.items():
-                cur.execute("DELETE FROM {0}_data WHERE id = ? AND key = ?".format(self.section), (self.id,k))
+                cur.execute("""DELETE FROM "{0}_data" WHERE id = ? AND key = ?""".format(self.section), (self.id,k))
                 if k in self._conf.get('index_lists', []):
-                    cur.execute("DELETE FROM {0}_index WHERE id = ? AND key = ?".format(self.section), (self.id,k))
+                    cur.execute("""DELETE FROM "{0}_index" WHERE id = ? AND key = ?""".format(self.section), (self.id,k))
                     for v2 in v:
-                        cur.execute("INSERT INTO {0}_index (id,key,value) VALUES (?,?,?)".format(self.section), (self.id,k,v2))
+                        cur.execute("""INSERT INTO "{0}_index" (id,key,value) VALUES (?,?,?)""".format(self.section), (self.id,k,v2))
                 nv = self._set(k, v)
-                cur.execute("INSERT INTO {0}_data (id,key,value) VALUES (?,?,?)".format(self.section), (self.id,k,nv))
+                cur.execute("""INSERT INTO "{0}_data" (id,key,value) VALUES (?,?,?)""".format(self.section), (self.id,k,nv))
 
             self.expired = False
 
@@ -153,7 +153,7 @@ class Sqlite3Storage(SlateStorage):
             db = self._get_db()
             try:
                 cur = db.cursor()
-                cur.execute("SELECT value FROM {0}_data WHERE id = ? AND key = ?".format(self.section), (self.id,key))
+                cur.execute("""SELECT value FROM "{0}_data" WHERE id = ? AND key = ?""".format(self.section), (self.id,key))
                 result = cur.fetchone()
                 if result is None:
                     result = default
@@ -178,14 +178,14 @@ class Sqlite3Storage(SlateStorage):
         db = self._get_db()
         try:
             cur = db.cursor()
-            cur.execute("SELECT value FROM {0}_data WHERE id = ? AND key = ?".format(self.section), (self.id,key))
+            cur.execute("""SELECT value FROM "{0}_data" WHERE id = ? AND key = ?""".format(self.section), (self.id,key))
             data = cur.fetchall()
             if len(data) == 1:
                 result = data[0][0]
             else:
                 result = default
 
-            cur.execute("DELETE FROM {0}_data WHERE id = ? AND key = ?".format(self.section), (self.id,key))
+            cur.execute("""DELETE FROM "{0}_data" WHERE id = ? AND key = ?""".format(self.section), (self.id,key))
             db.commit()
 
             return result
@@ -202,7 +202,7 @@ class Sqlite3Storage(SlateStorage):
         db = self._get_db()
         try:
             cur = db.cursor()
-            cur.execute("SELECT key,value FROM {0}_data WHERE id = ?".format(self.section), (self.id,))
+            cur.execute("""SELECT key,value FROM "{0}_data" WHERE id = ?""".format(self.section), (self.id,))
             data = cur.fetchall()
 
             return [ (k,self._get(k,v)) for k,v in data ]
@@ -234,7 +234,7 @@ class Sqlite3Storage(SlateStorage):
         db = cls._get_db()
         try:
             cur = db.cursor()
-            cur.execute("SELECT id FROM {0}_index WHERE key = ? AND value = ?".format(section), (key, value))
+            cur.execute("""SELECT id FROM "{0}_index" WHERE key = ? AND value = ?""".format(section), (key, value))
             rows = cur.fetchall()
             return [ Slate(section, row[0]) for row in rows ]
         finally:
@@ -245,7 +245,7 @@ class Sqlite3Storage(SlateStorage):
         db = cls._get_db()
         try:
             cur = db.cursor()
-            cur.execute("SELECT id FROM {0} WHERE id >= ? AND id < ?".format(section), (start, end))
+            cur.execute("""SELECT id FROM "{0}" WHERE id >= ? AND id < ?""".format(section), (start, end))
             rows = cur.fetchall()
             skip = skip or 0
             limit = skip + limit if limit else None
@@ -282,16 +282,16 @@ class Sqlite3Storage(SlateStorage):
             if not already_queried and cur.execute("SELECT COUNT(*) FROM SQLite_Master WHERE type='table' AND name=?", (section,)).fetchone()[0] != 1:
                 #Create tables
                 cls.storage_checked.append(section)
-                cur.execute("CREATE TABLE {0} (id TEXT, timeout INTEGER, expire TIMESTAMP)".format(section))
-                cur.execute("CREATE UNIQUE INDEX {0}_pk ON {0} (id ASC)".format(section))
-                cur.execute("CREATE INDEX {0}_expire ON {0} (expire DESC)".format(section))
+                cur.execute("""CREATE TABLE "{0}" (id TEXT, timeout INTEGER, expire TIMESTAMP)""".format(section))
+                cur.execute("""CREATE UNIQUE INDEX "{0}_pk" ON "{0}" (id ASC)""".format(section))
+                cur.execute("""CREATE INDEX "{0}_expire" ON "{0}" (expire DESC)""".format(section))
 
-                cur.execute("CREATE TABLE {0}_data (id TEXT, key TEXT, value BLOB)".format(section))
-                cur.execute("CREATE UNIQUE INDEX {0}_data_pk ON {0}_data (id ASC, key ASC)".format(section))
+                cur.execute("""CREATE TABLE "{0}_data" (id TEXT, key TEXT, value BLOB)""".format(section))
+                cur.execute("""CREATE UNIQUE INDEX "{0}_data_pk" ON "{0}_data" (id ASC, key ASC)""".format(section))
 
-                cur.execute("CREATE TABLE {0}_index (id TEXT, key TEXT, value TEXT)".format(section))
-                cur.execute("CREATE INDEX {0}_index_pk ON {0}_index (id ASC)".format(section))
-                cur.execute("CREATE INDEX {0}_index_search ON {0}_index (key ASC, value ASC)".format(section))
+                cur.execute("""CREATE TABLE "{0}_index" (id TEXT, key TEXT, value TEXT)""".format(section))
+                cur.execute("""CREATE INDEX "{0}_index_pk" ON "{0}_index" (id ASC)""".format(section))
+                cur.execute("""CREATE INDEX "{0}_index_search" ON "{0}_index" (key ASC, value ASC)""".format(section))
 
                 db.commit()
 
@@ -306,10 +306,10 @@ class Sqlite3Storage(SlateStorage):
         try:
             cur = db.cursor()
             id_tuple = (id,)
-            cur.execute("DELETE FROM {0}_data WHERE id = ?".format(section), id_tuple)
-            cur.execute("DELETE FROM {0}_index WHERE id = ?".format(section), id_tuple)
+            cur.execute("""DELETE FROM "{0}_data" WHERE id = ?""".format(section), id_tuple)
+            cur.execute("""DELETE FROM "{0}_index" WHERE id = ?""".format(section), id_tuple)
             if expire:
-                cur.execute("DELETE FROM {0} WHERE id = ?".format(section), id_tuple)
+                cur.execute("""DELETE FROM "{0}" WHERE id = ?""".format(section), id_tuple)
             db.commit()
         finally:
             cur.close()
@@ -321,10 +321,10 @@ class Sqlite3Storage(SlateStorage):
         for section in cls.storage_checked:
             try:
                 cur = db.cursor()
-                rows = cur.execute("SELECT id FROM {0} WHERE expire < ?".format(section), (now,)).fetchall()
-                cur.executemany("DELETE FROM {0} WHERE id = ?".format(section), rows)
-                cur.executemany("DELETE FROM {0}_data WHERE id = ?".format(section), rows)
-                cur.executemany("DELETE FROM {0}_index WHERE id = ?".format(section), rows)
+                rows = cur.execute("""SELECT id FROM "{0}" WHERE expire < ?""".format(section), (now,)).fetchall()
+                cur.executemany("""DELETE FROM "{0}" WHERE id = ?""".format(section), rows)
+                cur.executemany("""DELETE FROM "{0}_data" WHERE id = ?""".format(section), rows)
+                cur.executemany("""DELETE FROM "{0}_index" WHERE id = ?""".format(section), rows)
                 db.commit()
             finally:
                 cur.close()

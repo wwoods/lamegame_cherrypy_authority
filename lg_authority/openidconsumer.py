@@ -44,7 +44,7 @@ else:
         supported = True
 
         static_path = '../static'
-        store = OpenIdStore()
+        store = OpenIdStore('openid-c')
 
         def __init__(self, auth_root):
             self.auth_root = auth_root
@@ -73,8 +73,14 @@ else:
                 )
 
         @cherrypy.expose
-        def index(self, url, redirect=None, admin=False):
+        def index(self, url=None, redirect=None, admin=False):
             """Begin the openID request"""
+
+            if url is None:
+                #Meta request; the YADIS header is all that matters.
+                cherrypy.response.headers[YADIS_HEADER_NAME] = cherrypy.url('xrds')
+                return 'Hi!'
+
             openid_url = url
             redirect = redirect or ' ' #Blank doesn't get retransmitted
             c = self.get_consumer()

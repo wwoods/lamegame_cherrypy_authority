@@ -229,6 +229,8 @@ try:
 except ImportError:
     from urllib.parse import urlencode
 
+from .common_templates import *
+
 def url_add_parms(base, qs):
     if type(qs) != dict:
         raise TypeError('qs must be dict')

@@ -17,7 +17,7 @@ setup(name='lamegame_cherrypy_authority',
       packages=find_packages(exclude=['ez_setup', 'examples', 'tests']),
       include_package_data=True,
       package_data = {
-        '': ['static/*']
+        '': ['static/*','templates/*']
       },
       zip_safe=False,
       install_requires=[

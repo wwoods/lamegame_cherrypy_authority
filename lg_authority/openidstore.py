@@ -14,11 +14,14 @@ else:
     class OpenIdStore(object):
         """Uses Slates to handle openid authentication"""
 
-        ns = "openid"
+        ns = "openid" #The section to store data in.
         server_timeout = 600 #seconds until we forget about a server and its
                              #associations.
         assocs = "a-"
         nonces = "n-"
+
+        def __init__(self, section):
+            self.ns = section
 
         def _getassocs(self, server_url):
             return Slate(self.ns, self.assocs + server_url, self.server_timeout)

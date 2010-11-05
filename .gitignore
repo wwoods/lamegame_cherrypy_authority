@@ -3,3 +3,4 @@ build
 dist
 lamegame_cherrypy_authority.egg-info
 site_local.py
+test.db

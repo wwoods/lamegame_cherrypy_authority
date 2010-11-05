@@ -20,6 +20,8 @@ class AuthInterface(object):
             return "Name may not have spaces"
         if '@' in username:
             return "Name may not contain the @ symbol"
+        if '/' in username:
+            return "Name may not contain the / symbol"
         return False
 
     def user_create(self, username, data, timeout=missing):

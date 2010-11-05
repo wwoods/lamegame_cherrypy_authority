@@ -9,6 +9,7 @@ import cherrypy
 from .common import *
 from .adminroot import AdminRoot
 from .openidconsumer import OpenIdConsumerRoot
+from .openidserver import OpenIdServerRoot
 from . import passwords
 
 @groups('any')
@@ -25,6 +26,7 @@ class AuthRoot(object):
 
     def __init__(self):
         self.login_openid = OpenIdConsumerRoot(self)
+        self.openid = OpenIdServerRoot(self)
 
     def login_redirect(self, redirect=None):
         """Raises cherrypy.HTTPRedirect to the appropriate location.
