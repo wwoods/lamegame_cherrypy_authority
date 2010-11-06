@@ -13,8 +13,9 @@ class PymongoStorage(SlateStorage):
         host: Host address
         port: Port to connect with
         db: Database containing slates collection
-        collection_base: Collection base name to which '_' + Section is
+        collection_base: Collection base name to which the Section name is
             appended.  This is not the collection that is actually created.
+            If not specified, presumed the empty string.
     """
 
     def __init__(self, section, id, timeout, force_timeout):
@@ -232,7 +233,7 @@ class PymongoStorage(SlateStorage):
           ,port=conf.get('port', None)
           )
         cls.db = c[conf['db']]
-        cls.collection_base = conf['collection_base']
+        cls.collection_base = conf.get('collection_base', '')
         cls.collections = {}
 
         from bson.binary import Binary
@@ -246,7 +247,7 @@ class PymongoStorage(SlateStorage):
         if result is not None:
             return result
 
-        result = cls.db[cls.collection_base + '_' + section]
+        result = cls.db[cls.collection_base + section]
         result.ensure_index([ ('name', 1) ], unique=True, background=True)
         result.ensure_index([ ('expire', 1) ], background=True)
 

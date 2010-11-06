@@ -42,6 +42,11 @@ class Session(Slate):
         #file.
 
     def is_response_cookie_needed(self):
+        #Turns out, a lot of caching mechanisms determine whether to cache
+        #or not based on whether or not the response contains a cookie.
+        #It's best to always return one.
+        return True
+
         if self.id != self.originalid:
             return True
         if hasattr(self, '_update_cookie'):

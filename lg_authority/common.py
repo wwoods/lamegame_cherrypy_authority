@@ -253,7 +253,7 @@ def deny_access():
     denial = cherrypy.tools.lg_authority._merged_args()[denial_key]
     if denial is not None:
         raise cherrypy.HTTPRedirect(
-            url_add_parms(denial, { 'redirect': cherrypy.url(relative='server', qs=cherrypy.request.query_string) })
+            url_add_parms(denial, { 'redirect': cherrypy.url(qs=cherrypy.request.query_string) })
             )
     else:                
         raise cherrypy.HTTPError(401, 'Access Denied')

@@ -26,6 +26,7 @@ else:
     from openid.server.server import Server, ProtocolError, CheckIDRequest, EncodingError
     from openid.server.trustroot import verifyReturnTo
     from openid.yadis.discover import DiscoveryFailure
+    from openid.yadis.constants import YADIS_CONTENT_TYPE
     from openid.consumer.discover import OPENID_IDP_2_0_TYPE
     from openid.extensions import sreg, pape
     from openid.fetchers import HTTPFetchingError
@@ -39,7 +40,7 @@ else:
         supported = True
 
         static_path = '../static'
-        store = OpenIdStore('openid-s')
+        store = OpenIdStore('openid_s')
 
         def __init__(self, auth_root):
             self.auth_root = auth_root
@@ -75,6 +76,7 @@ else:
 
         @cherrypy.expose
         def xrds(self):
+            cherrypy.response.headers['Content-Type'] = YADIS_CONTENT_TYPE
             templ = get_template('openid_xrds.xml')
             return templ.format(type=OPENID_IDP_2_0_TYPE, endpoint=self.get_endpoint())
 

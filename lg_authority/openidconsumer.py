@@ -44,7 +44,7 @@ else:
         supported = True
 
         static_path = '../static'
-        store = OpenIdStore('openid-c')
+        store = OpenIdStore('openid_c')
 
         def __init__(self, auth_root):
             self.auth_root = auth_root
