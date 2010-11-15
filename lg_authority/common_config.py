@@ -2,6 +2,9 @@
 of all of the available configuration options for lg_authority.
 """
 
+import re
+import datetime
+
 def get_site_name():
     """Returns the site domain for the current cherrypy request."""
     name_match = get_site_name.namere.match(cherrypy.request.base)
