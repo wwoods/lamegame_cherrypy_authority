@@ -29,6 +29,41 @@ class UserObject:
         #If they're logged in, they'd better be active.
         self.__slate__ = config.auth.user_get_record(self.id)
 
+    def __getitem__(self, key):
+        return self.__slate__[key]
+
+    def __setitem__(self, key, value):
+        self.__slate__[key] = value
+
+    def __delitem___(self, key):
+        del self.__slate__[key]
+
+    def get(self, key, default=None):
+        return self.__slate__.get(key, default)
+
+    def pop(self, key, default=None):
+        """Return D[key] and remove key from D, or default."""
+        return self.__slate__.pop(key, default)
+
+    def update(self, d):
+        """D.update(E) -> None.  Update D from E: for k in E: D[k] = E[k]."""
+        self.__slate__.update(d)
+
+    def setdefault(self, key, default=None):
+        """D.setdefault(k[,d]) -> D.get(k,d), also set D[k]=d if k not in D."""
+        return self.__slate__.setdefault(key, default)
+
+    #We don't want to expose clear()..
+
+    def keys(self):
+        return self.__slate__.keys()
+
+    def values(self):
+        return self.__slate__.values()
+
+    def items(self):
+        return self.__slate__.items()
+
 class AuthInterface(object):
     """The interface for auth-specific functions with the storage backend.
     """
