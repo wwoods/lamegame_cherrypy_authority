@@ -67,7 +67,7 @@ else:
             """Retrieve the absolute URL identifying this user"""
             if not cherrypy.user:
                 return None
-            return cherrypy.url('user/' + cherrypy.user.name)
+            return cherrypy.url('user/' + cherrypy.user.id)
 
         @cherrypy.expose
         def index(self):

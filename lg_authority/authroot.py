@@ -35,7 +35,7 @@ class AuthRoot(object):
         redirect = redirect or config['user_home_page']
         if hasattr(redirect, '__call__'):
              redirect = redirect()
-        if config.auth.old_password(cherrypy.user.name):
+        if config.auth.old_password(cherrypy.user.id):
             redirect = url_add_parms(
                 'change_password'
                 , { 'redirect': redirect, 'error': 'Your password is more than {old} days old.  It would be good to change it for security.'.format(old=config['site_password_renewal']) }
@@ -47,7 +47,7 @@ class AuthRoot(object):
     def index(self):
         body = []
         body.append('<div class="lg_auth_form">')
-        body.append('<p>You are logged in as {user.name} <a href="logout">(logout)</a></p><p>You are a member of the following groups: {groups}</p>'.format(
+        body.append('<p>You are logged in as {user.id} <a href="logout">(logout)</a></p><p>You are a member of the following groups: {groups}</p>'.format(
             user=cherrypy.user
             , groups=[ g[1] for g in get_user_groups_named().items() ]
             ))
@@ -70,8 +70,8 @@ class AuthRoot(object):
         if cherrypy.user:
             groups = [ { 'id': k, 'name': v } for k,v in get_user_groups_named().items() ]
             return json.dumps({ 
-                'username': cherrypy.user.name
-                ,'userprimary': 'user-' + cherrypy.user.name
+                'username': cherrypy.user.id
+                ,'userprimary': 'user-' + cherrypy.user.id
                 ,'usergroups': groups
                 })
         return { 'error': 'Invalid credentials' }
@@ -384,7 +384,7 @@ original destination</a></p>""".format(redirect)
                     raise AuthError(error)
 
                 config.auth.set_user_password(
-                    cherrypy.user.name
+                    cherrypy.user.id
                     , [ 'sha256', passwords.sha256(new_pass) ]
                     )
                 if redirect:

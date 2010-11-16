@@ -161,7 +161,7 @@ class RamStorage(SlateStorage):
         slate is the Slate object, section is the section key.
         """
         try:
-            del cls.section_cache[section][slate.name]
+            del cls.section_cache[section][slate.id]
         except KeyError:
             pass
     

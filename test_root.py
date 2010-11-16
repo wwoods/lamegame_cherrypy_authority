@@ -15,7 +15,7 @@ class TestAlias(object):
 
     @cherrypy.expose
     def index(self):
-        return "You're logged in as {user}!".format(user=cherrypy.user.name)
+        return "You're logged in as {user}!".format(user=cherrypy.user.id)
 
     @cherrypy.expose
     @lg_authority.groups('None')

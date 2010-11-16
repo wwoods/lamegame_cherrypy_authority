@@ -75,7 +75,7 @@ def get_user_groups():
     user = cherrypy.serving.user
     result = [ 'any' ]
     if user is not None:
-        result = [ 'any', 'auth', 'user-' + user.name ] + user.groups
+        result = [ 'any', 'auth', 'user-' + user.id ] + user.groups
     return result
 
 def get_user_groups_named():

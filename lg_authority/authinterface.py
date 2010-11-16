@@ -4,6 +4,31 @@ from .common import *
 from . import passwords
 from .slates import Slate
 
+class UserObject:
+    """An object representing the current logged in user.
+    Served as cherrypy.user.
+    """
+
+    id = None
+    id__doc = "The username of the current user"
+
+    groups = []
+    groups__doc = "List of groups to which the user belongs"
+
+    slate = None
+    slate__doc = "The user's slate for the current request"
+
+    def __init__(self, session_dict):
+        self.id = session_dict['__name__']
+        self.groups = session_dict['groups']
+        self.slate = Slate(
+            cherrypy.serving.lg_authority['user_slate_section']
+            ,self.id
+            )
+
+        #If they're logged in, they'd better be active.
+        self.__slate__ = config.auth.user_get_record(self.id)
+
 class AuthInterface(object):
     """The interface for auth-specific functions with the storage backend.
     """
@@ -236,14 +261,10 @@ class AuthInterface(object):
         """Sets cherrypy.serving.user based on the passed auth dict.
         d may be None.
         """
-        user = d and ConfigDict(d)
-        cherrypy.serving.user = user
-        if user is not None:
-            user.name = user['__name__'] #Convenience
-            user.groups = user['groups'] #Convenience
-            user.slate = Slate(
-                cherrypy.serving.lg_authority['user_slate_section'], user.name
-                )
+        if d is not None:
+            cherrypy.serving.user = UserObject(d)
+        else:
+            cherrypy.serving.user = None
 
     def logout(self):
         """Log out the current logged in user."""
