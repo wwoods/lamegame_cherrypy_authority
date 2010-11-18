@@ -321,6 +321,7 @@ original destination</a></p>""".format(redirect)
                     )
                 )
         except AuthError as e:
+            import time
             time.sleep(0.1)
             error = str(e)
 

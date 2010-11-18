@@ -85,6 +85,12 @@ config.update({
     #functionality like e-mail registration and forgot password resets via
     #email.
     ,
+    'site_template': None#default_template
+    #The template used to render the authroot forms.  If this is a function,
+    #it will be called with the internal HTML for that particular form as
+    #an argument.  If this is a two-member array, then the form content
+    #is placed firmly in the middle.
+    ,
     'site_user_list': {
         'admin': {
             'auth_password': { 'date': datetime.datetime.utcnow(), 'pass': [ 'sha256', ['bff74028f285748241375d1c9c7f9b6e85fd3900edf8e601a78f7f84d848b42e', 'admin'] ] }
