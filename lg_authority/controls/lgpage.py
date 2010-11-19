@@ -49,7 +49,7 @@ class LgPageControl(Control):
             p = PageControl(title=get_site_name()).appendto(self)
             CssResetControl().appendto(p)
             self.DefaultStyle().appendto(p)
-            center = CenterControl('800px').appendto(p)
+            center = CenterControl(width='800px').appendto(p)
             for c in children:
                 center.append(c)
 

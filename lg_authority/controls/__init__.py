@@ -1,6 +1,7 @@
 """Controls collection used by lg_authority"""
 
 from ..control import Control
+from .generic import GenericControl
 from .page import PageControl
 from .text import TextControl
 from .literal import LiteralControl

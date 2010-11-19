@@ -69,8 +69,9 @@ class Control(object):
     kwargs = {}
     kwargs__doc = "The keyword arguments that will be passed to template.  A kwarg may be a Control; it will be handled properly."
 
-    def __init__(self, children=[], **kwargs):
+    def __init__(self, **kwargs):
         """Initializes this Control's children and kwargs"""
+        children = kwargs.get('children', [])
         self._children = children[:]
         self.kwargs = self.kwargs.copy()
         for k,v in kwargs.items():
@@ -136,6 +137,13 @@ class Control(object):
     def appendto(self, parent):
         """Appends self to a parent, then returns self."""
         parent.append(self)
+        return self
+
+    def extend(self, children):
+        """Appends an iterable of children to self, then returns self."""
+        self._children.extend(children)
+        for c in children:
+            c._parent = self
         return self
 
     def remove(self):
