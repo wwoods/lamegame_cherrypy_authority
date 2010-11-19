@@ -1,5 +1,6 @@
 from ..control import Control
 
+@Control.Kwarg('width', '1024px', 'The width of the centered content.  Must be valid CSS')
 class CenterControl(Control):
     """A centered div; width must be set"""
 
@@ -8,11 +9,4 @@ class CenterControl(Control):
     {children}
 </div>
     """
-
-    def __init__(self, width):
-        self.width = width
-        Control.__init__(self)
-
-    def prerender(self):
-        self.kwargs['width'] = self.width
 

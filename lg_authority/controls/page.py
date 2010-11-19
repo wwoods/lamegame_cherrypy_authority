@@ -20,11 +20,11 @@ class PageControl(Control):
 </html>
     """
 
-    def prerender(self):
-        self.kwargs['meta'] = ''.join(self.getheaders('meta'))
-        self.kwargs['head'] = ''.join(self.getheaders('head'))
-        self.kwargs['style'] = ''.join(self.getheaders('style'))
-        self.kwargs['script'] = '(function() { ' \
+    def prerender(self, kwargs):
+        kwargs['meta'] = ''.join(self.getheaders('meta'))
+        kwargs['head'] = ''.join(self.getheaders('head'))
+        kwargs['style'] = ''.join(self.getheaders('style'))
+        kwargs['script'] = '(function() { ' \
             + ' })();(function() { '.join(self.getheaders('script')) \
             + ' })();'
 

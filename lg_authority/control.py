@@ -17,7 +17,18 @@ class Control(object):
     _children__doc = "Ordered list of child Controls"
 
     child_wrapper = None
-    child_wrapper__doc = """An optional formatting for children.  The {child} marker will be substituted with the child's content.  Or, this can be a three element array, where the first element is a "header", the second occurs only between two children, and the third occurs at the end."""
+    child_wrapper__doc = """An optional formatting for children.  
+    
+    If specified as a two element array, the first element will occur before
+    each child, and the second element will occur after each child.
+    
+    If specified as a three element array, the first element will occur before
+    all children, the second will occur between children, and the third will
+    occur after all of the children.
+
+    If specified as a string, then {child} will be substituted with the 
+    child.
+    """
 
     template = ""
     template__doc = """The text that will be format()'d with kwargs and emitted.
@@ -197,9 +208,10 @@ class Control(object):
         """Hook to allow dynamic appending of children based on a final state.
         """
 
-    def prerender(self):
-        """Hook to do something immediately before getting the html.  Maybe 
-        setup self.kwargs?
+    def prerender(self, kwargs):
+        """Hook to do something immediately before getting the html.  If any
+        of this control's kwargs need to be modified before being emitted
+        as text, now is the time to do it.
 
         All children must be created at this point, since children's 
         prerender() is called first.
@@ -232,7 +244,14 @@ class Control(object):
         if self.child_wrapper is not None:
             if isinstance(self.child_wrapper, list) \
                 or isinstance(self.child_wrapper, tuple):
-                pre,join,post = self.child_wrapper
+                if len(self.child_wrapper) == 2:
+                    pre = self.child_wrapper[0]
+                    join = self.child_wrapper[1] + self.child_wrapper[0]
+                    post = self.child_wrapper[1]
+                elif len(self.child_wrapper) == 3:
+                    pre,join,post = self.child_wrapper
+                else:
+                    raise ValueError("Control's child_wrapper was a list, but did not have only 2 or only 3 elements.")
             else:
                 before,after = self.child_wrapper.split('{child}')
                 pre = before
@@ -252,16 +271,16 @@ class Control(object):
         #Flatten child_gen
         child_gen = [ d for c in child_gen for d in c ]
 
-        #Prepare ourselves for rendering
-        self._check_template()
-        self.prerender()
-
         #Format kwargs
         kwargs = self.kwargs.copy()
         for k in kwargs:
             v = kwargs[k]
             if isinstance(v, Control):
                 kwargs[k] = v.gethtml()
+
+        #Prepare ourselves for rendering
+        self._check_template()
+        self.prerender(kwargs)
 
         parts = self.template.split('{children}')
         if len(parts) > 1:

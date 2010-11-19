@@ -11,20 +11,14 @@ escape_html_text.table = {
     ,'<': '&lt;'
     }
 
+@Control.Kwarg('text', '', 'The text to display (will be escaped)')
 class TextControl(Control):
     """A plaintext control.  Pass text to the constructor or set the 
     text attribute.
     """
 
-    text = ''
-    text__doc = "The text to display (will be escaped)"
-
     template = """<span>{text}</span>"""
 
-    def __init__(self, text=''):
-        self.text = text
-        Control.__init__(self)
-
-    def prerender(self):
-        self.kwargs['text'] = escape_html_text(self.text)
+    def prerender(self, kwargs):
+        kwargs['text'] = escape_html_text(kwargs['text'])
 
