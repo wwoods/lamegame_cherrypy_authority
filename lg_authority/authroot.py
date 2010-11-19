@@ -45,6 +45,20 @@ class AuthRoot(object):
     @cherrypy.expose
     @groups('auth')
     def index(self):
+        from .controls import *
+        p = LgPageControl()
+        f = LgAuthFormControl().appendto(p)
+        LiteralControl('<p>You are logged in as ').appendto(f)
+        TextControl(cherrypy.user.id).appendto(f)
+        LiteralControl('</p>').appendto(f)
+        class Grouper(Control):
+            template = '<p>You are a member of the following groups: {children}</p>'
+            child_wrapper = [ '', ', ', '' ]
+        Grouper(children=[ TextControl(g[1]) for g in get_user_groups_named().items() ]).appendto(f)
+        LiteralControl('<p><a href="change_password">Change Password</a></p>').appendto(f)
+        if 'admin' in cherrypy.user.groups:
+            LiteralControl('<p><a href="admin/">Admin Interface</a></p>').appendto(f)
+        return p.gethtml()
         body = []
         body.append('<div class="lg_auth_form">')
         body.append('<p>You are logged in as {user.id} <a href="logout">(logout)</a></p><p>You are a member of the following groups: {groups}</p>'.format(

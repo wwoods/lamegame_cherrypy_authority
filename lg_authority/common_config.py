@@ -4,11 +4,11 @@ of all of the available configuration options for lg_authority.
 
 import re
 import datetime
+import cherrypy
 
 def get_site_name():
     """Returns the site domain for the current cherrypy request."""
     name_match = get_site_name.namere.match(cherrypy.request.base)
-    log('Base: ' + cherrypy.request.base)
     return name_match.group(1)
 get_site_name.namere = re.compile('^[^:]+://([^/:]*)')
 

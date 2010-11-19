@@ -1,5 +1,6 @@
 from ..control import Control
 
+@Control.Kwarg("title", "Page", "The page title")
 class PageControl(Control):
     """A webpage in lg_authority land"""
 
@@ -19,9 +20,6 @@ class PageControl(Control):
 </html>
     """
 
-    title = "Page"
-    title__doc = "The page title"
-
     def prerender(self):
         self.kwargs['meta'] = ''.join(self.getheaders('meta'))
         self.kwargs['head'] = ''.join(self.getheaders('head'))
@@ -29,6 +27,4 @@ class PageControl(Control):
         self.kwargs['script'] = '(function() { ' \
             + ' })();(function() { '.join(self.getheaders('script')) \
             + ' })();'
-
-        self.kwargs['title'] = self.title
 

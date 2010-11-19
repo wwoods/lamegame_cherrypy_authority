@@ -3,6 +3,8 @@ from ..common import *
 from ..control import Control
 from .page import PageControl
 from .literal import LiteralControl
+from .center import CenterControl
+from .cssreset import CssResetControl
 
 class LgPageControl(Control):
     """An lg_authority page.  This class overrides template rendering such
@@ -17,6 +19,17 @@ class LgPageControl(Control):
 {{{ style
   body {
     background-color: #d0d0ff;
+    font-size: 12pt;
+  }
+  p {
+    margin-bottom: 0.5em;
+  }
+  .lg-auth-form {
+    background-color: #ffffff;
+    -moz-border-radius: 0.5em;
+    padding: 1em;
+    margin-top: 1em;
+    margin-bottom: 1em;
   }
 }}}
         """
@@ -33,7 +46,9 @@ class LgPageControl(Control):
             #Use PageControl
             children = self._children[:]
             self._children = []
-            p = PageControl().appendto(self)
+            p = PageControl(title=get_site_name()).appendto(self)
+            CssResetControl().appendto(p)
+            self.DefaultStyle().appendto(p)
             center = CenterControl('800px').appendto(p)
             for c in children:
                 center.append(c)

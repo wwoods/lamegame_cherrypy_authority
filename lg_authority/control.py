@@ -48,7 +48,9 @@ class Control(object):
     _headers = {}
     _headers__doc = "Any include-once header sections from the template."
 
-    _template_static_loader = re.compile(r"\{\{\{ (\w+)(.*?)\}\}\}", re.DOTALL & re.M)
+    _template_static_loader = re.compile(r"\{\{\{ (\w+)(.*?)\}\}\}"
+        , re.DOTALL | re.M
+        )
 
     _template_loaded = False
     _template_loaded__doc = "Flag as to whether or not the template for this class has been loaded."
@@ -56,10 +58,29 @@ class Control(object):
     kwargs = {}
     kwargs__doc = "The keyword arguments that will be passed to template.  A kwarg may be a Control; it will be handled properly."
 
-    def __init__(self):
+    def __init__(self, children=[], **kwargs):
         """Initializes this Control's children and kwargs"""
-        self._children = []
-        self.kwargs = {}
+        self._children = children[:]
+        self.kwargs = self.kwargs.copy()
+        for k,v in kwargs.items():
+            setattr(self, k, v)
+
+    @staticmethod
+    def Kwarg(name, default=None, doc=None):
+        """A keyword argument fused to a property of the class.  Designed
+        to be used as a class decorator.
+        """
+        def decorate(cls):
+            if cls.kwargs is Control.kwargs:
+                cls.kwargs = cls.kwargs.copy()
+            def g(self):
+                return self.kwargs[name]
+            def s(self, val):
+                self.kwargs[name] = val
+            setattr(cls, name, property(g, s, doc=doc))
+            cls.kwargs[name] = default
+            return cls
+        return decorate
 
     @classmethod
     def _check_template(cls):
@@ -159,7 +180,6 @@ class Control(object):
                     continue
                 if name in cls._headers:
                     result.append(cls._headers[name])
-                    print("HEADER {0}: {1}///{2}".format(name, cls._headers[name], child))
 
             processed.update(stemp)
 
