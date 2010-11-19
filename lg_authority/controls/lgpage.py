@@ -12,6 +12,15 @@ class LgPageControl(Control):
 
     template = "{children}"
 
+    class DefaultStyle(Control):
+        template = """
+{{{ style
+  body {
+    background-color: #d0d0ff;
+  }
+}}}
+        """
+
     def build(self):
         if config['site_template'] is not None:
             templ = config['site_template']
@@ -25,6 +34,7 @@ class LgPageControl(Control):
             children = self._children[:]
             self._children = []
             p = PageControl().appendto(self)
+            center = CenterControl('800px').appendto(p)
             for c in children:
-                p.append(c)
+                center.append(c)
 
