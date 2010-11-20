@@ -7,6 +7,7 @@ import json
 import cherrypy
 
 from .common import *
+from .controls import *
 from .adminroot import AdminRoot
 from .openidconsumer import OpenIdConsumerRoot
 from .openidserver import OpenIdServerRoot
@@ -45,25 +46,16 @@ class AuthRoot(object):
     @cherrypy.expose
     @groups('auth')
     def index(self):
-        from .controls import LgPageControl, LgAuthFormControl, GenericControl, TextControl, LiteralControl
         p = LgPageControl()
-        f = LgAuthFormControl().appendto(p)
-        g = GenericControl(
-            '<p>You are logged in as {user}</p>'
-            ,user = TextControl(cherrypy.user.id)
-            ).appendto(f)
+        p.append('<p>You are logged in as ', TextControl(cherrypy.user.id), '</p>')
         g = GenericControl(
             '<p>You are a member of the following groups: {children}</p>'
             , child_wrapper = [ '', ', ', '' ]
-            ).appendto(f)
+            ).appendto(p)
         g.extend([ TextControl(g[1]) for g in get_user_groups_named().items() ])
-        LiteralControl(
-            '<p><a href="change_password">Change Password</a></p>'
-            ).appendto(f)
+        p.append('<p><a href="change_password">Change Password</a></p>')
         if 'admin' in cherrypy.user.groups:
-            LiteralControl(
-                '<p><a href="admin/">Admin Interface</a></p>'
-                ).appendto(f)
+            p.append('<p><a href="admin/">Admin Interface</a></p>')
         return p.gethtml()
         body = []
         body.append('<div class="lg_auth_form">')
@@ -165,6 +157,14 @@ New accounts are not allowed.  Contact administrator if you need access.
     {openid_list}
   </ul>
 </p>""".format(openid_list=openid_list)
+
+        p = LgPageControl()
+        e = LgErrorControl(error=kwargs['error']).appendto(p)
+        p.append(openid_form)
+        p.append(password_form)
+        p.append(kwargs['new_account'])
+
+        return p.gethtml()
 
         return """
 <div class="lg_auth_form">
@@ -413,6 +413,38 @@ original destination</a></p>""".format(redirect)
                 return "Password changed successfully."
             except AuthError as ae:
                 error = str(ae)
+
+        p = LgPageControl()
+        err = LgErrorControl(error=error).appendto(p)
+        form = GenericControl(
+            '<form action="change_password" method="POST">{children}</form>'
+            ).appendto(p)
+        @Control.Kwarg('type', 'hidden', 'The type of the input')
+        @Control.Kwarg('name', '', 'The name of the input')
+        @Control.Kwarg('value', '', 'The default value')
+        class InputControl(Control):
+            template = '<input type="{type}" name="{name}"{value} />'
+            def prerender(self, kwargs):
+                if kwargs['value']:
+                    kwargs['value'] = ' value="' + kwargs['value'] + '"'
+
+        InputControl(name="redirect", value=redirect).appendto(form)
+        par = GenericControl('<p>{children}</p>').appendto(form)
+
+        par.append('Change Password: ')
+        class TableControl(Control):
+            template = '<table>{children}</table>'
+
+        class RowControl(Control):
+            template = '<tr>{children}</tr>'
+            child_wrapper = [ '<td>', '</td>' ]
+
+        table = TableControl().appendto(par)
+        r1 = RowControl().append('New Password', InputControl(type='password', name='newpass')).appendto(table)
+        r2 = RowControl().append('New Password (again)', InputControl(type='password', name='newpass2')).appendto(table)
+        r3 = RowControl().append(InputControl(type='submit', value='Submit')).appendto(table)
+
+        return p.gethtml()
 
         return """
 <div class="lg_auth_form">

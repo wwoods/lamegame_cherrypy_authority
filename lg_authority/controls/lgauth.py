@@ -1,10 +1,7 @@
-from ..common import *
+import cherrypy
 
-from ..control import Control
-from .page import PageControl
-from .literal import LiteralControl
-from .center import CenterControl
-from .cssreset import CssResetControl
+from ..common import *
+from .common import *
 
 class LgPageControl(Control):
     """An lg_authority page.  This class overrides template rendering such
@@ -20,9 +17,10 @@ class LgPageControl(Control):
   body {
     background-color: #d0d0ff;
     font-size: 12pt;
+    line-height: 150%;
   }
-  p {
-    margin-bottom: 0.5em;
+  td {
+    padding-right: 1em;
   }
   .lg-auth-form {
     background-color: #ffffff;
@@ -35,6 +33,8 @@ class LgPageControl(Control):
         """
 
     def build(self):
+        self.prepend(LgMenuControl())
+
         if config['site_template'] is not None:
             templ = config['site_template']
             if isinstance(templ, list) and len(templ) == 2:
@@ -50,6 +50,48 @@ class LgPageControl(Control):
             CssResetControl().appendto(p)
             self.DefaultStyle().appendto(p)
             center = CenterControl(width='800px').appendto(p)
-            for c in children:
-                center.append(c)
+            form = DivControl(cls="lg-auth-form").appendto(center)
+            form.extend(children)
+
+class LgMenuControl(Control):
+    """The lg_authority menu"""
+
+    template = """
+{{{ style
+  .lg-auth-menu {
+    margin-bottom: 0.5em;
+  }
+  .lg-auth-menu a {
+    color: #000000;
+    text-decoration: underline;
+    display: inline-block;
+    margin-right: 1em;
+    padding: 0.25em;
+  }
+  .lg-auth-menu a:hover {
+    background-color: #efffef;
+  }
+}}}
+<div class="lg-auth-menu">
+  {children}
+</div>
+    """
+
+    def __init__(self, **kwargs):
+        Control.__init__(self, **kwargs)
+        self.append('<a href="./">Dashboard</a>')
+        self.append('<a href="change_password">Change Password</a>')
+        if 'admin' in cherrypy.user.groups:
+            self.append('<a href="admin/">Admin Interface</a></p>')
+
+@Control.Kwarg('error', '', 'The error text to display')
+class LgErrorControl(Control):
+    template = """
+{{{ style
+  .lg-auth-error {
+    color: #ff0000;
+  }
+}}}
+<div class="lg-auth-error">{error}</div>
+    """
 

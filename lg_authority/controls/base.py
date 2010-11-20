@@ -5,6 +5,12 @@ The reason this exists is that I don't want any dependencies for this module.
 import re
 import inspect
 
+#Python 2/3 compatability
+try:
+    basestring
+except NameError:
+    basestring = str
+
 class Control(object):
     """An object representing a control (tag set) on a webpage.  It is 
     generally assumed that there is one primary Control per page.
@@ -128,10 +134,13 @@ class Control(object):
         #Set our template
         cls.template = template
 
-    def append(self, child):
-        """Appends a child to self, then returns self."""
-        self._children.append(child)
-        child._parent = self
+    def append(self, *args):
+        """Appends a child or html literal to self, then returns self."""
+        for child in args:
+            if isinstance(child, basestring):
+                child = LiteralControl(html=child)
+            self._children.append(child)
+            child._parent = self
         return self
 
     def appendto(self, parent):
@@ -139,12 +148,23 @@ class Control(object):
         parent.append(self)
         return self
 
-    def extend(self, children):
-        """Appends an iterable of children to self, then returns self."""
-        self._children.extend(children)
-        for c in children:
+    def prepend(self, *args):
+        """Prepends a list of children to the front, then returns self."""
+        for c in reversed(args):
+            if isinstance(c, basestring):
+                c = LiteralControl(html=c)
+            self._children.insert(0, c)
             c._parent = self
         return self
+
+    def prependto(self, parent):
+        """Prepends self to a parent, then returns self."""
+        parent.prepend(self)
+        return self
+
+    def extend(self, children):
+        """Appends an iterable of children to self, then returns self."""
+        return self.append(*children)
 
     def remove(self):
         """Removes self from parent, or does nothing.  Returns self."""
@@ -302,4 +322,12 @@ class Control(object):
         for c in child_gen:
             yield c
         yield post.format(**kwargs)
+
+@Control.Kwarg('html', '', 'The HTML to render')
+class LiteralControl(Control):
+    """Html literal - the html supplied is printed verbatim without any
+    formatting.
+    """
+
+    template = "{html}"
 

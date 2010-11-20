@@ -1,4 +1,4 @@
-from ..control import Control
+from .base import Control
 
 class CssResetControl(Control):
     "Eric Meyer's v1.0 css reset from http://meyerweb.com/eric/tools/css/reset/"
