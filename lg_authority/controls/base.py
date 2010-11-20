@@ -264,6 +264,9 @@ class Control(object):
         """Streams the HTML representation of this control.  Note that 
         {children} may be used only once in the template.
         """
+        #Make sure our template is loaded
+        self._check_template()
+
         #First call build() in case we need to add any new children
         self.build()
 
@@ -307,7 +310,6 @@ class Control(object):
                 kwargs[k] = v.gethtml()
 
         #Prepare ourselves for rendering
-        self._check_template()
         self.prerender(kwargs)
 
         parts = self.template.split('{children}')

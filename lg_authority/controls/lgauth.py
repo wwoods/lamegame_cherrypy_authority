@@ -79,6 +79,11 @@ class LgMenuControl(Control):
 
     def __init__(self, **kwargs):
         Control.__init__(self, **kwargs)
+
+    def build(self):
+        if not cherrypy.user:
+            self.template = ''
+            return
         self.append('<a href="./">Dashboard</a>')
         self.append('<a href="change_password">Change Password</a>')
         if 'admin' in cherrypy.user.groups:
