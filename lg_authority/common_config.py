@@ -35,6 +35,9 @@ config = ConfigDict()
 #Any key prefixed with site_ is meant to be site-wide, and will be written
 #to this dict on the first request (NO MATTER WHERE THE REQUEST IS TO).
 config.update({
+    'site_auth_root': '/auth/'
+    #The absolute path to the site's auth root, with ending slash.
+    ,
     'site_key': 'abc123o2qh3otin;oiH#*@(TY(#*Th:T*:(@#HTntb982#HN(:@#*TBH:@#(*THioihI#HOIH%oihio3@H%IOH#@%I)(!*@Y%+(+!@H%~`un23gkh'
     #Site encryption key for passwords.  Should be more than 60 chars.
     ,
@@ -195,6 +198,8 @@ config.update({
     #Page that unauthorized users are sent to when trying to access a
     #resource they cannot retrieve AND are not authenticated.  
     #Use None for a standard "Access Denied" page.
+    #
+    #If the path starts with '/auth/', then site_auth_root will be substituted.
     #
     #deny_page_anon may be pointed to a login page.
     ,

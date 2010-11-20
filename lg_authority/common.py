@@ -51,6 +51,12 @@ def url_add_parms(base, qs):
         return base + '&' + qs
     return base + '?' + qs
 
+def get_auth_path(path):
+    """If path starts with /auth/, substitutes in site_auth_root"""
+    if path.startswith('/auth/'):
+        return config['site_auth_root'] + path[6:]
+    return path
+
 # Basic rejection function calls
 def deny_access():
     """Denies access to the current request.  Raises an HTTPRedirect or

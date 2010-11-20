@@ -84,10 +84,14 @@ class LgMenuControl(Control):
         if not cherrypy.user:
             self.template = ''
             return
-        self.append('<a href="./">Dashboard</a>')
-        self.append('<a href="change_password">Change Password</a>')
+        class Link(Control):
+            template = '<a href="{path}">{name}</a>'
+            def prerender(self, kwargs):
+                kwargs['path'] = get_auth_path(kwargs['path'])
+        self.append(Link(path='/auth/', name='Dashboard'))
+        self.append(Link(path='/auth/change_password', name='Change Password'))
         if 'admin' in cherrypy.user.groups:
-            self.append('<a href="admin/">Admin Interface</a></p>')
+            self.append(Link(path='/auth/admin/', name='Admin Interface'))
 
 @Control.Kwarg('error', '', 'The error text to display')
 class LgErrorControl(Control):

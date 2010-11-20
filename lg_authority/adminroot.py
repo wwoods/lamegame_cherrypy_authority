@@ -4,6 +4,7 @@ import json
 import datetime
 
 from .common import *
+from .controls import *
 
 def admin_to_json(obj):
     if isinstance(obj, datetime.datetime):
@@ -41,6 +42,29 @@ class AdminRoot(object):
         inusers = [
             '<li><a href="edit_user?user={0}">{0}</a></li>'.format(u) for u in unames
             ]
+
+        p = LgPageControl()
+        p.append('<h1>Users</h1>')
+        form = GenericControl('<form method="GET" action="edit_user">{children}</form>').appendto(p)
+        form.append('Find/Create User: <input type="text" name="user" />')
+        form.append('<input type="submit" value="Add/Edit" />')
+
+        @Control.Kwarg('users')
+        @Control.Kwarg('usertype')
+        class UserTypeControl(Control):
+            template = '<h2>Top {users} {usertype} Users</h2><ul>{children}</ul>'
+
+        g = UserTypeControl(users=maxiusers, usertype='Pending').appendto(form)
+        g.extend(iusers)
+
+        g = UserTypeControl(users=maxusers, usertype='Active').appendto(form)
+        g.extend(users)
+
+        g = UserTypeControl(users=maxiusers, usertype='Inactive').appendto(form)
+        g.extend(inusers)
+
+        return p.gethtml()
+
 
         return self.make_page("""
 <h1>Users</h1>

@@ -12,8 +12,10 @@ except NameError:
     basestring = str
 
 class Control(object):
-    """An object representing a control (tag set) on a webpage.  It is 
-    generally assumed that there is one primary Control per page.
+    """An object representing a control (tag set) on a webpage.
+
+    Any attributes that are not explicitly part of the class will be 
+    rerouted to kwargs.
     """
 
     _parent = None
@@ -82,6 +84,15 @@ class Control(object):
         self.kwargs = self.kwargs.copy()
         for k,v in kwargs.items():
             setattr(self, k, v)
+
+    def __getattr__(self, key):
+        return self.kwargs[key]
+
+    def __setattr__(self, key, value):
+        if hasattr(self, key):
+            object.__setattr__(self, key, value)
+        else:
+            self.kwargs[key] = value
 
     @staticmethod
     def Kwarg(name, default=None, doc=None):
