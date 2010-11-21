@@ -47,6 +47,7 @@ class LgPageControl(Control):
             children = self._children[:]
             self._children = []
             p = PageControl(title=get_site_name()).appendto(self)
+            NoIndexControl().appendto(p) #Don't index auth pages...
             CssResetControl().appendto(p)
             self.DefaultStyle().appendto(p)
             center = CenterControl(width='800px').appendto(p)

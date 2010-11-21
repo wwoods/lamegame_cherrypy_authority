@@ -75,6 +75,10 @@ class CenterControl(Control):
 </div>
     """
 
+class NoIndexControl(Control):
+    """Adds meta name="robots" content="noindex" to a page."""
+    template = '{{{ meta <meta name="robots" content="noindex" /> }}}'
+
 def GenericControl(template, **kwargs):
     """Creates a generic control with the specified template.  Useful
     for spot code that you want to use formatting for.
