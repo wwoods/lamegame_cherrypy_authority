@@ -80,7 +80,9 @@ class AuthRoot(object):
                 user = config.auth.login(username)
             
         if cherrypy.user:
-            groups = [ { 'id': k, 'name': v } for k,v in get_user_groups_named().items() ]
+            #Filter out any, auth group from this list.  Leave that up
+            #to the application using the login service.
+            groups = [ { 'id': k, 'name': v } for k,v in get_user_groups_named().items() if k != 'any' and k != 'auth']
             return json.dumps({ 
                 'username': cherrypy.user.id
                 ,'userprimary': 'user-' + cherrypy.user.id
