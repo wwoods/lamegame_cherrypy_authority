@@ -23,7 +23,7 @@ class Session(Slate):
     originalid__doc = """Client-sent identifier for the session slate"""
 
     def __init__(self, id=None, **kwargs):
-        self.timeout = kwargs.pop('session_timeout', self.timeout) * 60
+        self.timeout = kwargs.pop('session_timeout', Session.timeout) * 60
         self.session_cookie = kwargs.get('session_cookie', self.session_cookie)
 
         self.originalid = id
@@ -32,11 +32,16 @@ class Session(Slate):
         #necessary.  _test_id calls Slate.__init__
         self._test_id()
 
-        #Check for the need to update the session's expiration date.
-        ttl = self.time_to_expire()
-        if ttl < self.timeout // 2:
-            self.touch()
-            self._update_cookie = True
+        if not self.is_expired():
+            #Check for the need to update the session's expiration date.
+            #Update if we're either halfway through our session timeout or
+            #at one hour intervals, whichever comes first.
+            #Remember that by this point, timeout is in seconds instead of
+            #minutes.
+            ttl = self.time_to_expire()
+            if ttl < self.timeout // 2 or ttl < self.timeout - 60*60:
+                self.touch()
+                self._update_cookie = True
 
         #The response cookie is set in init_session(), at the bottom of this
         #file.
@@ -64,11 +69,21 @@ class Session(Slate):
 
     def _test_id(self):
         """Test if we are expired.  If we are, assign a new id"""
-        Slate.__init__(self, 'session', self.id, timeout=self.timeout)
+        #Force the session timeout to always update with the site's preferences.
+        new_timeout = self.timeout
+        Slate.__init__(
+            self
+            , 'session'
+            , self.id
+            , timeout=new_timeout
+            , force_timeout=True
+            )
         if self.is_expired():
             while True:
                 self.id = self._generate_id()
-                Slate.__init__(self, 'session', self.id, timeout=self.timeout)
+                #We are looking for expired (non-existant) sessions, so no
+                #need to set force_timeout
+                Slate.__init__(self, 'session', self.id, timeout=new_timeout)
                 if self.is_expired():
                     break
             log('Session {0} expired -> {1}'.format(self.originalid, self.id))
@@ -82,27 +97,28 @@ def init_session(
     , session_path_header=None
     , session_domain=None
     , session_secure=False
+    , session_httponly=True
     , session_persistent=True
     , **kwargs
     ):
-    """Initialize session object (using cookies).
+    """Initialize session object (using cookies).  
+    Attached to before_request_body.
     
-    storage_type: one of 'ram', 'file', 'postgresql'. This will be used
-        to look up the corresponding class in cherrypy.lib.sessions
-        globals. For example, 'file' will use the FileSession class.
-    path: the 'path' value to stick in the response cookie metadata.
-    path_header: if 'path' is None (the default), then the response
+    session_path: the 'path' value to stick in the response cookie metadata.
+    session_path_header: if 'path' is None (the default), then the response
         cookie 'path' will be pulled from request.headers[path_header].
-    name: the name of the cookie.
-    timeout: the expiration timeout (in minutes) for the stored session data.
-        If 'persistent' is True (the default), this is also the timeout
+    session_cookie: the name of the cookie.
+    session_timeout: the expiration timeout (in minutes) for the stored session 
+        data. If 'persistent' is True (the default), this is also the timeout
         for the cookie.
-    domain: the cookie domain.
-    secure: if False (the default) the cookie 'secure' value will not
+    session_domain: the cookie domain.
+    session_secure: if False (the default) the cookie 'secure' value will not
         be set. If True, the cookie 'secure' value will be set (to 1).
-    clean_freq (minutes): the poll rate for expired session cleanup.
-    persistent: if True (the default), the 'timeout' argument will be used
-        to expire the cookie. If False, the cookie will not have an expiry,
+    session_httponly: If True (the default) the cookie 'httponly' value will be
+        set, which prevents client scripts from reading the cookie.  This
+        helps to guard against XSS.
+    session_persistent: if True (the default), the 'timeout' argument will be 
+        used to expire the cookie. If False, the cookie will not have an expiry,
         and the cookie will be a "session cookie" which expires when the
         browser is closed.
     
@@ -137,13 +153,18 @@ def init_session(
             # See http://support.microsoft.com/kb/223799/EN-US/
             # and http://support.mozilla.com/en-US/kb/Cookies
             cookie_timeout = None
-        set_response_cookie(path=session_path, path_header=session_path_header
+        set_response_cookie(
+          path=session_path, path_header=session_path_header
           , name=name
-          , timeout=cookie_timeout, domain=session_domain, secure=session_secure)
+          , timeout=cookie_timeout
+          , domain=session_domain
+          , secure=session_secure
+          , httponly=session_httponly
+          )
 
 
 def set_response_cookie(path=None, path_header=None, name='session_id',
-                        timeout=60, domain=None, secure=False):
+                        timeout=60, domain=None, secure=False, httponly=True):
     """Set a response cookie for the client.
     
     path: the 'path' value to stick in the response cookie metadata.
@@ -156,6 +177,9 @@ def set_response_cookie(path=None, path_header=None, name='session_id',
     domain: the cookie domain.
     secure: if False (the default) the cookie 'secure' value will not
         be set. If True, the cookie 'secure' value will be set (to 1).
+    httponly: if True (the default) the cookie's 'httponly' value will be
+        set, preventing client scripts from reading the cookie.  Helps prevent
+        XSS, see https://www.owasp.org/index.php/HttpOnly
     """
     # Set response cookie
     cookie = cherrypy.serving.response.cookie
@@ -175,4 +199,6 @@ def set_response_cookie(path=None, path_header=None, name='session_id',
         cookie[name]['domain'] = domain
     if secure:
         cookie[name]['secure'] = 1
+    if httponly:
+        cookie[name]['httponly'] = 1
 

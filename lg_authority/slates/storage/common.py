@@ -63,8 +63,10 @@ class SlateStorage(object): #PY3 , metaclass=cherrypy._AttributeDocstring):
         """Return the cached (as of first data access) number of seconds
         before this Slate will expire.
 
-        Return None if it is already expired or will never expire.  The
-        minimum numeric value returned is zero.
+        Return 0 if this slate is already expired.
+        Return None if it will never expire.  
+        
+        The minimum numeric value returned is zero.
         """
         raise NotImplementedError()
 

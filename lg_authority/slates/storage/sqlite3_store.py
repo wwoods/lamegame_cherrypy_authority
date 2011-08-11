@@ -222,7 +222,7 @@ class Sqlite3Storage(SlateStorage):
     def time_to_expire(self):
         self._access()
         if self.expired:
-            return None
+            return 0
         if not hasattr(self, 'expiry'):
             return None
         diff = self.expiry - datetime.datetime.utcnow()

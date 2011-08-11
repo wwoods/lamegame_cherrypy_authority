@@ -109,7 +109,7 @@ class RamStorage(SlateStorage):
 
     def time_to_expire(self):
         if self.expired:
-            return None
+            return 0
         if not hasattr(self, 'expiry'):
             return None
         return max(0, self.expiry - time.time())
