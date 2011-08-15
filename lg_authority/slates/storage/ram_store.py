@@ -151,7 +151,7 @@ class RamStorage(SlateStorage):
         """Clean up expired slates."""
         for s,c in list(cls.section_cache.items()):
             for id in list(c.keys()):
-                if cls.is_expired(s, id):
+                if cls._is_expired(s, id):
                     cls._expire(c, s, c[id])
         log('Cleaned expired slates')
 
