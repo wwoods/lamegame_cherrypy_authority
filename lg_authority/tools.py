@@ -88,7 +88,7 @@ class AuthTool(cherrypy.Tool):
         cherrypy.serving.lg_authority = conf
 
         #Initialization stuff
-        if not hasattr(self, 'initialized'):
+        if not getattr(self, 'initialized', False):
             self.initialized = True
             try:
                 self._setup_initialize(conf)
