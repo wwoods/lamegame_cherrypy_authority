@@ -267,10 +267,16 @@ class AuthInterface(object):
         record = self.user_get_record(username)
         d = record.todict()
         d['__name__'] = username
-        cherrypy.session['auth'] = d
-        cherrypy.session['authtime'] = datetime.datetime.utcnow()
+        changeset = {
+            'auth': d
+            ,'authtime': datetime.datetime.utcnow()
+            }
         if admin:
-            cherrypy.session['authtime_admin'] = datetime.datetime.utcnow()
+            changeset['authtime_admin'] = datetime.datetime.utcnow()
+
+        #Guard against session fixation - see regen_id docstring
+        cherrypy.session.regen_id()
+        cherrypy.session.update(changeset)
 
         self.serve_user_from_dict(d)
         return record

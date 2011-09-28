@@ -42,8 +42,16 @@ class Session(Slate):
             if ttl < self.timeout // 2 or ttl < self.timeout - 60*60:
                 self.touch()
                 self._update_cookie = True
+        else:
+            #This is a brand new session.  We should probably
+            #touch it to prevent it from expiring.  We could just send a 
+            #new session ID on each request, like the default CherryPy 
+            #behavior, but for an application with AJAX login this 
+            #can cause very weird issues.
+            self.touch()
+            self._update_cookie = True
 
-        #The response cookie is set in init_session(), at the bottom of this
+        #The response cookie is set in send_session_cookie(), at the bottom of this
         #file.
 
     def is_response_cookie_needed(self):
@@ -66,6 +74,21 @@ class Session(Slate):
         e = time.time() - one_year
         cherrypy.serving.response.cookie[self.session_cookie] = 'expired'
         cherrypy.serving.response.cookie[self.session_cookie]['expires'] = httputil.HTTPDate(e)
+
+    def regen_id(self):
+        """Copies all of the data for this cookie, but regenerates
+        it under a new identifier.  Some sources recommend changing 
+        session id on login, and that is what this does.  Essentially
+        prevents an attacker from creating a blank, persistent session,
+        getting a user to log in through whatever means, and then 
+        using the previously blank session as a logged in session of
+        the victim.
+        """
+        data = self.todict()
+        Slate.expire(self)
+        self._test_id()
+        self.update(data)
+        self._update_cookie = True
 
     def _test_id(self):
         """Test if we are expired.  If we are, assign a new id"""
@@ -148,14 +171,29 @@ def init_session(
     # the requested session data.
     cherrypy.serving.session = sess = Session(id, **kwargs)
     
+def send_session_cookie(
+    session_path=None
+    , session_path_header=None
+    , session_domain=None
+    , session_secure=False
+    , session_httponly=True
+    , session_persistent=True
+    , **kwargs
+    ):
+    """Send the session cookie after the body in case the request
+    regenerated the session id and it needs to be retransmitted.
+    """
+    sess = cherrypy.serving.session
     if sess.is_response_cookie_needed():
+        session_cookie = kwargs.get('session_cookie', Session.session_cookie)
+        cookie_timeout = kwargs.get('session_timeout', Session.timeout)
         if not session_persistent:
             # See http://support.microsoft.com/kb/223799/EN-US/
             # and http://support.mozilla.com/en-US/kb/Cookies
             cookie_timeout = None
         set_response_cookie(
           path=session_path, path_header=session_path_header
-          , name=name
+          , name=session_cookie
           , timeout=cookie_timeout
           , domain=session_domain
           , secure=session_secure

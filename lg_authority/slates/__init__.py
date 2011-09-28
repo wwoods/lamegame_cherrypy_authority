@@ -11,7 +11,7 @@ __author__ = 'Walt Woods'
 import cherrypy
 from ..common import *
 from .slates import Slate
-from .session import init_session
+from .session import init_session, send_session_cookie
 
 #Seed global config with Slate variable
 config.Slate = Slate
