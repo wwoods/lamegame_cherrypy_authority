@@ -17,6 +17,11 @@ class UserObject:
 
     slate = None
     slate__doc = "The user's slate for the current request"
+    
+    SESSION_USER_NOT_FROM_SLATE = '__name__not_from_db'
+    SESSION_USER_NOT_FROM_SLATE__doc = """If set in session, indicates that 
+        the user was logged in externally
+        """
 
     def __init__(self, session_dict):
         self.id = session_dict['__name__']
@@ -26,8 +31,11 @@ class UserObject:
             ,self.id
             )
 
-        #If they're logged in, they'd better be active.
-        self.__slate__ = config.auth.user_get_record(self.id)
+        #If the name didn't come from the db, don't get the user slate (there
+        #isn't one, external auth.
+        if UserObject.SESSION_USER_NOT_FROM_SLATE not in session_dict:
+            #If they're logged in, they'd better be active.
+            self.__slate__ = config.auth.user_get_record(self.id)
 
     def __getitem__(self, key):
         return self.__slate__[key]
@@ -262,10 +270,27 @@ class AuthInterface(object):
 
         sname.update(data)
 
-    def login(self, username, admin=False):
-        """Logs in the specified username.  Returns the user record."""
-        record = self.user_get_record(username)
-        d = record.todict()
+    def login(self, username, admin=False, groups=[], external_auth=False):
+        """Logs in the specified username.  Returns the user record.
+        
+        @param external_auth Set to True if this user doesn't come from local
+            authentication.  Necessary to set or else we'll try to get their
+            slate.
+            
+        @param groups Set to an array of groups to additionally give the user.
+            Only valid if external_auth is set.
+            
+        """
+        
+        if not external_auth:
+            record = self.user_get_record(username)
+            d = record.todict()
+        else:
+            record = {
+                'groups': groups
+                ,UserObject.SESSION_USER_NOT_FROM_SLATE: True
+                }
+            d = record
         d['__name__'] = username
         changeset = {
             'auth': d

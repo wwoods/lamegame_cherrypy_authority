@@ -109,7 +109,7 @@ config.update({
     #Group records to create if they do not already exist.  
     #any, auth, and user- groups are automatic.
     ,
-    'site_registration': 'email'
+    'site_registration': None
     #The required USER-SIDE registration mechanism.  All registration mechanisms use
     #recaptcha if it is installed.
     #Accepted values are:

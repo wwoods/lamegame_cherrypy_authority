@@ -16,6 +16,10 @@ from . import passwords
 @groups('any')
 class AuthRoot(object):
     """The lg_authority class responsible for handling authentication."""
+    
+    _cp_config = {
+        "response.headers.Content-Type": "text/html"
+    }
 
     static = cherrypy.tools.staticdir.handler(
         section='/static'
@@ -70,11 +74,14 @@ class AuthRoot(object):
         return ''.join(body)
 
     @cherrypy.expose
+    @cherrypy.config(**{'response.headers.Content-Type': 'text/plain'})
     def login_service(self, **kwargs):
         if 'username' in kwargs:
             username = kwargs['username'].lower()
             password = kwargs['password']
 
+            #TODO - this is horribly wrong.  we shouldn't be logging in the user
+            #just to get their information and forward it.
             username = config.auth.test_password(username, password)
             if username is not None:
                 user = config.auth.login(username)
@@ -88,7 +95,7 @@ class AuthRoot(object):
                 ,'userprimary': 'user-' + cherrypy.user.id
                 ,'usergroups': groups
                 })
-        return { 'error': 'Invalid credentials' }
+        return json.dumps({ 'error': 'Invalid credentials' })
 
     @cherrypy.expose
     def login(self, **kwargs):
