@@ -144,7 +144,7 @@ config.update({
         }
     #Your public and private keys for recaptcha, or None to disable recaptcha
     ,
-    'site_debug': True
+    'site_debug': False
     #Print debug messages for lg_authority?  True/False
     ,
     'override_sessions': True
