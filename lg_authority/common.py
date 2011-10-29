@@ -71,7 +71,7 @@ def deny_access():
         raise cherrypy.HTTPRedirect(
             url_add_parms(denial, { 'redirect': cherrypy.url(qs=cherrypy.request.query_string) })
             )
-    else:                
+    else:
         raise cherrypy.HTTPError(401, 'Access Denied')
 
 def get_user_groups():
