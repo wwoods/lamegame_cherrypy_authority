@@ -9,11 +9,13 @@ class SlateStorage(object): #PY3 , metaclass=cherrypy._AttributeDocstring):
     name = None
     name__doc = "The slate's name"
 
-    def __init__(self, section, id, timeout, force_timeout):
+    def __init__(self, section, id, timeout):
         """Initializes storage for a slate.  Shouldn't do any network activity.
         
-        If force_timeout is set, then the slate's timeout MUST be set to the
-        specified timeout, even if the slate already exists.
+        If timeout is specified, then the slate's timeout is to be set to the
+        specified timeout on any write, even if the slate already exists.  If
+        timeout is unspecified, its value will be a dict.  Use 
+        isinstance(timeout, dict) to see if timeout is specified.
         """
         raise NotImplementedError()
 
@@ -103,6 +105,13 @@ class SlateStorage(object): #PY3 , metaclass=cherrypy._AttributeDocstring):
     def _get_section_config(cls, section):
         """Class method to get the section config"""
         return config.get('site_storage_sections_' + section, {})
+
+    @classmethod
+    def destroySectionBeCarefulWhenYouCallThis(cls, section):
+        """DO NOT call unless you know what you are doing or are a test
+        environment.  Deletes all slates under the given section.
+        """
+        raise NotImplementedError()
 
     @classmethod
     def setup(cls, config):

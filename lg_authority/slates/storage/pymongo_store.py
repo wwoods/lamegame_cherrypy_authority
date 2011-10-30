@@ -18,11 +18,10 @@ class PymongoStorage(SlateStorage):
             If not specified, presumed the empty string.
     """
 
-    def __init__(self, section, id, timeout, force_timeout):
+    def __init__(self, section, id, timeout):
         self.section = section
         self.id = id
         self.timeout = timeout
-        self.force_timeout = force_timeout
         self._section = self._get_section(self.section)
         self._conf = self.get_section_config()
     
@@ -39,36 +38,32 @@ class PymongoStorage(SlateStorage):
             return
         self._first_access = True
 
-        get_fields = {
-            '_id': 1
-            ,'timeout': 1
-            ,'expire': 1
-            }
-        dcache = self._conf.get('cache', [])
-        for field in dcache:
-            get_fields['data.' + field] = 1
-        core = self._section.find_one({ 'name': self.id }, get_fields)
+        core = self._section.find_one({ 'name': self.id })
         now = datetime.datetime.utcnow()
 
-        self.cache = dict([ (f, missing) for f in dcache ])
-
         if core is None or core.get('expire', now) < now:
+            self.cache = {}
             self._expired()
             if core is not None:
                 self._id = core['_id']
+            else:
+                self._id = None
+            self.expiry = None
             log('Loaded new {1}slate: {0}'.format(
                 self.id
-                , '(expired; overwrite) '.format(self._id) if self._id is not None else ''
+                , '(expired; overwriting) '.format(self._id) 
+                    if self._id is not None 
+                    else ''
                 ))
         else:
             self.expired = False
             self._id = core['_id']
-            if not self.force_timeout:
-                self.timeout = core['timeout']
-            data = core.get('data', {})
-            for k,v in data.items():
-                self.cache[k] = self._get(k, v)
+            self.cache = core.get('data', {})
+            for k,v in self.cache.items():
+                self.cache[k] = self._get(k,v)
             self.expiry = core.get('expire', None)
+            if isinstance(self.timeout, dict):
+                self.timeout = core.get('timeout', None)
             log('Loaded slate {1} with {0}'.format(self.cache, self.id))
 
     def _write(self, fields=None):
@@ -76,7 +71,8 @@ class PymongoStorage(SlateStorage):
         Implicitly calls _access(), then writes either a brand
         new record or updates the old one, depending on expired status.
 
-        fields may be set to a dict to also set those values.
+        fields may be set to a dict to also set those values (in addition
+        to the timeout)
         """
         self._access()
 
@@ -85,14 +81,21 @@ class PymongoStorage(SlateStorage):
         for k,v in fields.items():
             self.cache[k] = v
 
+        useTimeout = not isinstance(self.timeout, dict)
+
         if self.expired:
+            if not useTimeout:
+                #We don't have a valid timeout, and we're new...
+                raise ArgumentError("Must specify a timeout for new slates")
+
             new_dict = {
                 'name': self.id
-                ,'timeout': self.timeout
                 ,'data': {}
                 }
-            if self.timeout is not None:
-                new_dict['expire'] = datetime.datetime.utcnow() + datetime.timedelta(seconds=self.timeout)
+            if useTimeout:
+                new_dict['timeout'] = self.timeout
+                if self.timeout is not None:
+                    new_dict['expire'] = datetime.datetime.utcnow() + datetime.timedelta(seconds=self.timeout)
             if self._id is not None:
                 new_dict['_id'] = self._id
             for k,v in fields.items():
@@ -105,8 +108,11 @@ class PymongoStorage(SlateStorage):
             sets = updates['$set'] = {}
             unsets = updates['$unset'] = {}
 
-            if self.force_timeout:
-                sets['timeout'] = self.timeout
+            if not useTimeout:
+                raise Exception("Code assertion failure - we must have a " +
+                    "timeout to be here.")
+
+            sets['timeout'] = self.timeout
             if self.timeout is not None:
                 sets['expire'] = datetime.datetime.utcnow() + datetime.timedelta(seconds=self.timeout)
             else:
@@ -153,10 +159,7 @@ class PymongoStorage(SlateStorage):
             if result is missing:
                 result = default
         else:
-            doc = self._section.find_one({ '_id': self._id }, { 'data.' + key: 1 })
-            result = doc.get('data', {}).get(key, default)
-            if result is not default:
-                result = self._get(key, result)
+            result = default
         return result
 
     def _get(self, key, value):
@@ -170,7 +173,7 @@ class PymongoStorage(SlateStorage):
 
     def pop(self, key, default):
         result = self.get(key, default)
-        self._section.update({ '_id': self._id }, { '$unset': { 'data.' + key: 1 } })
+        self._write({ key: missing })
         return result
 
     def clear(self):
@@ -181,9 +184,7 @@ class PymongoStorage(SlateStorage):
         self._access()
         if self.expired:
             return []
-        data = self._section.find_one({ '_id': self._id }, { 'data': 1 })
-        itms = data['data'].items()
-        return [ (k,self._get(k,v)) for k,v in itms ]
+        return self.cache.copy()
 
     def expire(self):
         self._access()
@@ -201,8 +202,16 @@ class PymongoStorage(SlateStorage):
         if not hasattr(self, 'expiry'):
             return None
         diff = self.expiry - datetime.datetime.utcnow()
-        diff = diff.days * 3600 * 24 + diff.seconds
+        diff = diff.days * 3600 * 24 + diff.seconds + diff.microseconds * 1e-6
         return max(0, diff)
+
+    @classmethod
+    def destroySectionBeCarefulWhenYouCallThis(cls, section):
+        """DO NOT call this unless you know what you are doing, or are 
+        a test environment.
+        """
+        s = cls._get_section(section)
+        s.remove()
 
     @classmethod
     def find_with(cls, section, key, value):

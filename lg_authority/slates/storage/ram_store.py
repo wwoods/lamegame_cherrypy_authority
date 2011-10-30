@@ -7,12 +7,11 @@ class RamStorage(SlateStorage):
     # Class-level objects. Don't rebind these!
     section_cache = {}
 
-    def __init__(self, section, id, timeout, force_timeout):
+    def __init__(self, section, id, timeout):
         self.section = section
         self.section_store = self.section_cache.setdefault(section, {})
         self.id = id
         self.timeout = timeout
-        self.force_timeout = force_timeout
 
     def _expired(self):
         """Sets this object up so that it has expired."""
@@ -33,10 +32,10 @@ class RamStorage(SlateStorage):
             log('Loaded new (expired) slate')
         else:
             self.expired = False
-            if not self.force_timeout:
-                self.timeout = self.section_store[id]['timeout']
             self.data = self.section_store[id]['data']
             self.expiry = self.section_store[id].get('expire', None)
+            if isinstance(self.timeout, dict):
+                self.timeout = self.section_store['timeout']
             log('Loaded slate with {0}'.format(self.data))
 
     def _write(self):
@@ -45,17 +44,27 @@ class RamStorage(SlateStorage):
         """
         self._access()
 
+        #If timeout is a dict, that means we shouldn't do anything with 
+        #existing timeout.
+        useTimeout = not isinstance(self.timeout, dict)
+
         if self.expired:
+            if not useTimeout:
+                raise ValueError("Timeout must be specified when writing "
+                    + "a new slate."
+                    )
             self.record = self.section_store[self.id] = {}
             self.record['timeout'] = self.timeout
             self.expired = False
         else:
+            if not useTimeout:
+                raise Exception("Programming error.  Must have timeout here.")
             self.record = self.section_store[self.id]
-            if self.force_timeout:
-                self.record['timeout'] = self.timeout
+            self.record['timeout'] = self.timeout
 
-        if self.record['timeout'] is not None:
-            self.record['expire'] = time.time() + self.record['timeout']
+        timeout = self.record['timeout']
+        if timeout is not None:
+            self.record['expire'] = time.time() + timeout
         else:
             self.record.pop('expire', None)
 
@@ -108,11 +117,16 @@ class RamStorage(SlateStorage):
         return self.expired
 
     def time_to_expire(self):
+        self._access()
         if self.expired:
             return 0
-        if not hasattr(self, 'expiry'):
+        if self.timeout is None:
             return None
         return max(0, self.expiry - time.time())
+
+    @classmethod
+    def destroySectionBeCarefulWhenYouCallThis(cls, section):
+      cls.section_cache[section] = {}
 
     @classmethod
     def find_with(cls, section, key, value):

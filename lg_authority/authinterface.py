@@ -96,9 +96,9 @@ class AuthInterface(object):
         """Inserts a user or raises an *Error"""
         kwargs = { 'timeout': None }
         if timeout is not missing:
-            kwargs = { 'timeout': timeout, 'force_timeout': True }
+            kwargs = { 'timeout': timeout }
 
-        user = Slate('user', 'user-' + username)
+        user = Slate('user', 'user-' + username, timeout=None)
         if not user.is_expired():
             raise AuthError('User already exists')
 
@@ -262,7 +262,7 @@ class AuthInterface(object):
         """Insert the specified group, or raise an *Error"""
         kwargs = { 'timeout': None }
         if timeout is not missing:
-            kwargs = { 'timeout': timeout, 'force_timeout': True }
+            kwargs = { 'timeout': timeout }
 
         sname = Slate('user', 'group-' + groupid, **kwargs)
         if not sname.is_expired():

@@ -1,17 +1,32 @@
 import cherrypy
 from cherrypy.test.helper import CPWebCase
+from unittest import TestCase
 
 try:
     from urllib import urlencode
 except ImportError:
     from urllib.parse import urlencode
 
-__all__ = [ 'LgWebCase' ]
+__all__ = [ 'LgTestCase', 'LgWebCase' ]
+
+
+class LgTestCase(TestCase):
+    def assertGreaterThan(self, expected, actual):
+        """Asserts that actual is greater than expected"""
+        self.assert_(actual > expected, "{0} > {1}".format(actual, expected))
+
+    def assertLessThan(self, expected, actual):
+        """Asserts that actual is less than expected"""
+        self.assert_(actual < expected, "{0} < {1}".format(actual, expected))
+
 
 class LgWebCase(CPWebCase):
     """Exactly the same as CPWebCase, but default behavior is to preserve
     cookies.
     """
+
+    # Make tests fully automatic
+    interactive = False
 
     def __init__(self, *args, **kwargs):
         CPWebCase.__init__(self, *args, **kwargs)

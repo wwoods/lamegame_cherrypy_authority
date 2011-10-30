@@ -21,11 +21,10 @@ class Sqlite3Storage(SlateStorage):
         file: The sqlite database file.
     """
 
-    def __init__(self, section, id, timeout, force_timeout):
+    def __init__(self, section, id, timeout):
         self.section = section
         self.id = id
         self.timeout = timeout
-        self.force_timeout = force_timeout
         self._section = self._get_section(self.section)
         self._conf = self.get_section_config()
     
@@ -63,8 +62,6 @@ class Sqlite3Storage(SlateStorage):
                 ))
         else:
             self.expired = False
-            if not self.force_timeout:
-                self.timeout = core[1]
             self.expiry = core[2]
 
             #Fetch cached elements
@@ -226,8 +223,26 @@ class Sqlite3Storage(SlateStorage):
         if not hasattr(self, 'expiry'):
             return None
         diff = self.expiry - datetime.datetime.utcnow()
-        diff = diff.days * 3600 * 24 + diff.seconds
+        diff = diff.days * 3600 * 24 + diff.seconds + diff.microseconds * 1e-6
         return max(0, diff)
+
+    @classmethod
+    def destroySectionBeCarefulWhenYouCallThis(cls, section):
+        db = cls._get_db()
+        try:
+            cur = db.cursor()
+            cur.execute(
+                """DROP TABLE IF EXISTS "{0}_index" """.format(section)
+                )
+            cur.execute(
+                """DROP TABLE IF EXISTS "{0}_data" """.format(section)
+                )
+            cur.execute(
+                """DROP TABLE IF EXISTS "{0}" """.format(section)
+                )
+            db.commit()
+        finally:
+            cur.close()
 
     @classmethod
     def find_with(cls, section, key, value):

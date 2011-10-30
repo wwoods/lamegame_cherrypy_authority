@@ -3,7 +3,7 @@ import cherrypy
 from .common import *
 
 from . import slates
-from .slates import storage
+from .slates import storage, Slate
 from .authinterface import AuthInterface
 from . import registration
 
@@ -179,6 +179,10 @@ class AuthTool(cherrypy.Tool):
         #Make the user into an object for conveniences
         user = cherrypy.session.get('auth', None)
         config.auth.serve_user_from_dict(user)
+
+        if cherrypy.user:
+            #Move the session over to the user session
+            cherrypy.serving.session = Slate('session_user', cherrypy.user.id)
 
         #Now validate static permissions, if any
         access_groups = kwargs['groups']

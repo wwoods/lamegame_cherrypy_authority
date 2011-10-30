@@ -27,7 +27,6 @@ class Session(Slate):
         self.session_cookie = kwargs.get('session_cookie', self.session_cookie)
 
         self.originalid = id
-        self.id = id
         #Check for expired session, and assign new identifier if
         #necessary.  _test_id calls Slate.__init__
         self._test_id()
@@ -108,16 +107,15 @@ class Session(Slate):
         Slate.__init__(
             self
             , 'session'
-            , self.id
+            , self.originalid
             , timeout=new_timeout
-            , force_timeout=True
             )
         if self.is_expired():
             while True:
-                self.id = self._generate_id()
-                #We are looking for expired (non-existant) sessions, so no
-                #need to set force_timeout
-                Slate.__init__(self, 'session', self.id, timeout=new_timeout)
+                newId = self._generate_id()
+                #We are looking for expired (non-existant) sessions; specifying
+                #a timeout won't hurt anything as long as we don't write.
+                Slate.__init__(self, 'session', newId, timeout=new_timeout)
                 if self.is_expired():
                     break
             log('Session {0} expired -> {1}'.format(self.originalid, self.id))
@@ -181,6 +179,8 @@ def init_session(
     # It will possess a reference to (and lock, and lazily load)
     # the requested session data.
     cherrypy.serving.session = sess = Session(id, **kwargs)
+    # Save a copy of our session in case we get overwritten by a user slate.
+    cherrypy.serving.sessionActual = sess
     
 def send_session_cookie(
     session_path=None
@@ -194,7 +194,7 @@ def send_session_cookie(
     """Send the session cookie after the body in case the request
     regenerated the session id and it needs to be retransmitted.
     """
-    sess = cherrypy.serving.session
+    sess = cherrypy.serving.sessionActual
     if sess.is_response_cookie_needed():
         session_cookie = kwargs.get('session_cookie', Session.session_cookie)
         cookie_timeout = kwargs.get('session_timeout', Session.timeout)
@@ -232,7 +232,7 @@ def set_response_cookie(path=None, path_header=None, name='session_id',
     """
     # Set response cookie
     cookie = cherrypy.serving.response.cookie
-    cookie[name] = cherrypy.serving.session.id
+    cookie[name] = cherrypy.serving.sessionActual.id
     cookie[name]['path'] = (path or cherrypy.serving.request.headers.get(path_header)
                             or '/')
     

@@ -62,16 +62,10 @@ class Slate(object): #PY3 , metaclass=cherrypy._AttributeDocstrings):
     storage = None
     storage__doc = "Storage instance for this slate"
     
-    def __init__(self, section, id, timeout=missing, force_timeout=False):
+    def __init__(self, section, id, timeout={}):
         """Initializes the Slate, but does no work.
         """
-        self.section = section
-        self.id = id
-
-        if not timeout is missing:
-            self.timeout = timeout
-
-        self.storage = config.storage_class(self.section, self.id, self.timeout, force_timeout)
+        self.storage = config.storage_class(section, id, timeout)
 
     def is_expired(self):
         """Returns true if the Slate is expired or non-existant; otherwise
@@ -188,4 +182,13 @@ class Slate(object): #PY3 , metaclass=cherrypy._AttributeDocstrings):
     def todict(self):
         """Slate -> dict"""
         return dict(self.storage.items())
+
+    def _get_section(self):
+        return self.storage.section
+
+    def _get_id(self):
+        return self.storage.id
+
+    section = property(_get_section)
+    id = property(_get_id)
 

@@ -5,9 +5,6 @@ import lg_authority
 class TestUserSlate(LgWebCase):
     """Tests that user slates work properly."""
 
-    # Make tests fully automatic
-    interactive = False
-
     @staticmethod
     def setup_server():
         @lg_authority.groups('auth')
