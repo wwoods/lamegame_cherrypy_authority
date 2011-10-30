@@ -33,7 +33,10 @@ cherrypy.config.update({
     , 'server.socket_port': 8080
     , 'tools.lg_authority.on': True
     , 'tools.lg_authority.site_debug': True
-    , 'tools.lg_authority.site_storage': 'ram'
+    , 'tools.lg_authority.site_storage': 'pymongo'
+    , 'tools.lg_authority.site_storage_conf': {
+        'db': 'lg_auth_testroot'
+        }
     , 'tools.lg_authority.site_registration_recaptcha': {
         'public': '6Le8H74SAAAAABOZXhtQr9Ld3WrWn1bnEyp19JFC'
         ,'private': '6Le8H74SAAAAAMHdM9B_8bmvFvkJbFqn3Y6WYcwD'

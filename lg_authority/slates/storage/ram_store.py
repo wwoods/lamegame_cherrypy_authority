@@ -6,6 +6,7 @@ class RamStorage(SlateStorage):
     
     # Class-level objects. Don't rebind these!
     section_cache = {}
+    random_id_num = 1
 
     def __init__(self, section, id, timeout):
         self.section = section
@@ -49,6 +50,10 @@ class RamStorage(SlateStorage):
         useTimeout = not isinstance(self.timeout, dict)
 
         if self.expired:
+            if self.id is None:
+                idNum = RamStorage.random_id_num
+                RamStorage.random_id_num += 1
+                self.id = 'ramStore_' + str(idNum)
             if not useTimeout:
                 raise ValueError("Timeout must be specified when writing "
                     + "a new slate."

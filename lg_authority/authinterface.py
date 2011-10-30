@@ -55,17 +55,16 @@ class AuthInterface(object):
         """Inserts a user or raises an *Error"""
         kwargs = { 'timeout': None }
 
-        user = Slate('user', None, timeout=kwargs['timeout'])
-        if not user.is_expired():
-            raise AuthError('User already exists')
-
         userNameSlate = Slate('user', 'un-' + userName, timeout=kwargs['timeout'])
         if not userNameSlate.is_expired():
             raise AuthError("User already exists")
-
         userNameSlate.touch()
-        user.update(data)
-        userNameSlate['slateId'] = user.id
+
+        user = Slate('user', None, timeout=kwargs['timeout'])
+        dataNew = data.copy()
+        dataNew['name'] = userName
+        user.update(dataNew)
+        userNameSlate['userId'] = user.id
        
     def user_create_holder(self, userName, data):
         """Inserts a placeholder for the given username.  Raises an AuthError
@@ -149,7 +148,11 @@ class AuthInterface(object):
     def user_get_record(self, username):
         """Returns the record for the given username (or None).
         """
-        slate = Slate('user', 'user-' + username)
+        slate = Slate('user', 'un-' + username)
+        if not slate.is_expired():
+            slate = Slate('user', slate['userId'])
+        else:
+            slate = None
         return slate
 
     def get_user_from_email(self, email):
@@ -186,7 +189,7 @@ class AuthInterface(object):
         Returns None if the user specified does not have a password to
         authenticate through or does not exist.
         """
-        user = Slate('user', 'user-' + username)
+        user = self.user_get_record(username)
         if user.is_expired():
             return None
         return user.get('auth_password', None)

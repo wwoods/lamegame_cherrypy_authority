@@ -111,13 +111,7 @@ class Session(Slate):
             , timeout=new_timeout
             )
         if self.is_expired():
-            while True:
-                newId = self._generate_id()
-                #We are looking for expired (non-existant) sessions; specifying
-                #a timeout won't hurt anything as long as we don't write.
-                Slate.__init__(self, 'session', newId, timeout=new_timeout)
-                if self.is_expired():
-                    break
+            Slate.__init__(self, 'session', None, timeout=new_timeout)
             log('Session {0} expired -> {1}'.format(self.originalid, self.id))
 
     def _generate_id(self):

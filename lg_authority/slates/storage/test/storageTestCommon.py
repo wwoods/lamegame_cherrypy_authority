@@ -7,6 +7,8 @@ import lg_authority
 from lg_authority.slates.storage import get_storage_class
 from lg_authority.testutil import *
 
+missing = {}
+
 class StorageTestCommon(object):
     """Storage tests.  Cannot derive from TestCase or would be ran as a test.
     All derivatives should also derive from lg_authority.testutil.LgTestCase.
@@ -22,13 +24,34 @@ class StorageTestCommon(object):
         self.storageClass.setup(self.storageConfig)
         self.storageClass.destroySectionBeCarefulWhenYouCallThis('test')
 
-    def getStorage(self, name=None, timeout=None):
+    def getStorage(self, name=missing, timeout=None):
         """Gets a storage object that can be tested."""
-        if name:
-            name = 'test_' + self.storageName + '_' + name
-        else:
+        if name is missing:
             name = 'test_' + self.storageName + '_' + self.id()
+        elif name is not None:
+            name = 'test_' + self.storageName + '_' + name
         return self.storageClass('test', name, timeout=timeout)
+
+    def test_clear(self):
+        store = self.getStorage()
+        store.set('a', 'b')
+        store.set('b', 'c')
+        store.clear()
+        self.assertEqual([], store.items())
+
+        store = self.getStorage()
+        self.assertEqual([], store.items())
+
+    def test_expire(self):
+        store = self.getStorage()
+        store.set('a', 'b')
+        store.expire()
+        self.assertTrue(store.is_expired())
+        self.assertEqual(None, store.get('a', None))
+
+        store = self.getStorage()
+        self.assertTrue(store.is_expired())
+        self.assertEqual(None, store.get('a', None))
 
     def test_isExpiredNonExisting(self):
         # Make sure that any non-existing slate is shown as expired until
@@ -41,11 +64,44 @@ class StorageTestCommon(object):
         store = self.getStorage(timeout=60)
         self.assertFalse(store.is_expired())
 
+    def test_items(self):
+        """items() works"""
+        store = self.getStorage()
+        store.set('a', 'b')
+        store.set('b', 'c')
+        self.assertEqual([ ('a', 'b'), ('b', 'c') ], store.items())
+
+        store = self.getStorage()
+        self.assertEqual([ ('a', 'b'), ('b', 'c') ], store.items())
+
+    def test_newId(self):
+        """Slates can be initialized with no id; one will be assigned"""
+
+        store = self.getStorage(None)
+        self.assertEqual(None, store.id)
+        self.assertTrue(store.is_expired())
+
+        store.touch()
+        self.assertNotEqual(None, store.id)
+        self.assertFalse(store.is_expired())
+
+        #Create a 2nd one just to make sure the ids are different...
+        store2 = self.getStorage(None)
+        self.assertNotEqual(store.id, store2.id)
+
+    def test_pop(self):
+        store = self.getStorage()
+        store.set('a', 'b')
+        self.assertEqual('b', store.pop('a', None))
+        self.assertEqual(None, store.pop('a', None))
+
+        store = self.getStorage()
+        self.assertEqual(None, store.pop('a', None))
+
     def test_setAndGet(self):
         # Test that set and get work
         store = self.getStorage(timeout=60)
         store.set('j', 56)
-
         self.assertEqual(56, store.get('j', None))
 
         store = self.getStorage(timeout=60)
@@ -73,5 +129,5 @@ class StorageTestCommon(object):
         store.touch()
         store = self.getStorage(timeout=60)
         ttl3 = store.time_to_expire()
-        self.assertGreaterThan(59.9, ttl3)
+        self.assertGreaterThan(59.8, ttl3)
 

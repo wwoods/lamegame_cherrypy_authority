@@ -52,10 +52,6 @@ class Slate(object): #PY3 , metaclass=cherrypy._AttributeDocstrings):
         Else, write new expiration and specified data
     """
     
-    id = None
-    id__doc = """The slate name/ID.  Each unique name corresponds to a unique slate.  Fixation does not apply to slates - for instance, if a slate with the name 'user-testuser' is expired, then its data is erased, but that is still the name of the slate.
-    """
-    
     timeout = None
     timeout__doc = "Number of seconds after which to delete slate data, or None for no expiration.  The default is no expiration."
 
@@ -190,5 +186,7 @@ class Slate(object): #PY3 , metaclass=cherrypy._AttributeDocstrings):
         return self.storage.id
 
     section = property(_get_section)
-    id = property(_get_id)
+    id__doc = """The slate name/ID.  Each unique name corresponds to a unique slate.  Fixation does not apply to slates - for instance, if a slate with the name 'user-testuser' is expired, then its data is erased, but that is still the name of the slate.
+    """
+    id = property(_get_id, doc=id__doc)
 

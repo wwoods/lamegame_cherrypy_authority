@@ -11,6 +11,9 @@ class SlateStorage(object): #PY3 , metaclass=cherrypy._AttributeDocstring):
 
     def __init__(self, section, id, timeout):
         """Initializes storage for a slate.  Shouldn't do any network activity.
+
+        If id is unspecified (None), this storage should note that and 
+        assign a new, unique identifier on any write operation.
         
         If timeout is specified, then the slate's timeout is to be set to the
         specified timeout on any write, even if the slate already exists.  If

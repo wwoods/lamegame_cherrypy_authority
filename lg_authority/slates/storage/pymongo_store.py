@@ -1,4 +1,5 @@
 import datetime
+import uuid
 try:
     import cPickle as pickle
 except ImportError:
@@ -87,6 +88,9 @@ class PymongoStorage(SlateStorage):
             if not useTimeout:
                 #We don't have a valid timeout, and we're new...
                 raise ArgumentError("Must specify a timeout for new slates")
+
+            if self.id is None:
+                self.id = PymongoStorage.generateId()
 
             new_dict = {
                 'name': self.id
@@ -179,12 +183,13 @@ class PymongoStorage(SlateStorage):
     def clear(self):
         self._write()
         self._section.update({ '_id': self._id }, { '$set': { 'data': {} } })
+        self.cache = {}
 
     def items(self):
         self._access()
         if self.expired:
             return []
-        return self.cache.copy()
+        return self.cache.items()
 
     def expire(self):
         self._access()
@@ -233,6 +238,10 @@ class PymongoStorage(SlateStorage):
         skip = skip or 0
         limit = skip + limit if limit else None
         return [ Slate(section, d['name']) for d in cursor[skip:limit] ]
+
+    @classmethod
+    def generateId(cls):
+        return uuid.uuid4().hex
 
     @classmethod
     def setup(cls, conf):

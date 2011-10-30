@@ -1,5 +1,6 @@
 import datetime
 import threading
+import uuid
 try:
     import cPickle as pickle
 except ImportError:
@@ -94,6 +95,8 @@ class Sqlite3Storage(SlateStorage):
             if self.expired:
                 if self.expired == 'existed':
                     self._clear_slate(self.section, self.id, True)
+                if self.id is None:
+                    self.id = Sqlite3Storage.generateId()
                 new_vals = [self.id, self.timeout, None]
                 if self.timeout is not None:
                     new_vals[2] = datetime.datetime.utcnow() + datetime.timedelta(seconds=self.timeout)
@@ -172,18 +175,24 @@ class Sqlite3Storage(SlateStorage):
         return result
 
     def pop(self, key, default):
+        self._access()
         db = self._get_db()
         try:
             cur = db.cursor()
             cur.execute("""SELECT value FROM "{0}_data" WHERE id = ? AND key = ?""".format(self.section), (self.id,key))
             data = cur.fetchall()
             if len(data) == 1:
-                result = data[0][0]
+                result = self._get(key, data[0][0])
             else:
                 result = default
 
             cur.execute("""DELETE FROM "{0}_data" WHERE id = ? AND key = ?""".format(self.section), (self.id,key))
             db.commit()
+
+            try:
+                del self.cache[key]
+            except KeyError:
+                pass
 
             return result
         finally:
@@ -267,6 +276,11 @@ class Sqlite3Storage(SlateStorage):
             return [ Slate(section, row[0]) for row in rows ]
         finally:
             cur.close()
+
+    @classmethod
+    def generateId(cls):
+        """Generates a UUID for a new slate that has no ID"""
+        return uuid.uuid4().hex
 
     @classmethod
     def setup(cls, conf):
