@@ -30,10 +30,11 @@ class RamStorage(SlateStorage):
 
         if RamStorage._is_expired(section, id):
             self._expired()
+            self.data = {}
             log('Loaded new (expired) slate')
         else:
             self.expired = False
-            self.data = self.section_store[id]['data']
+            self.data = self.section_store[id]['data'].copy()
             self.expiry = self.section_store[id].get('expire', None)
             if isinstance(self.timeout, dict):
                 self.timeout = self.section_store['timeout']
@@ -60,6 +61,7 @@ class RamStorage(SlateStorage):
                     )
             self.record = self.section_store[self.id] = {}
             self.record['timeout'] = self.timeout
+            self.record['data'] = {}
             self.expired = False
         else:
             if not useTimeout:
@@ -72,8 +74,6 @@ class RamStorage(SlateStorage):
             self.record['expire'] = time.time() + timeout
         else:
             self.record.pop('expire', None)
-
-        self.data = self.record.setdefault('data', {})
 
     def __str__(self):
         self._access()
@@ -88,6 +88,7 @@ class RamStorage(SlateStorage):
     def set(self, key, value):
         self._write()
         self.data[key] = value
+        self.record['data'][key] = value
 
     def get(self, key, default):
         self._access()
@@ -95,11 +96,14 @@ class RamStorage(SlateStorage):
 
     def pop(self, key, default):
         self._write()
-        return self.data.pop(key, default)
+        result = self.data.pop(key, default)
+        self.record['data'].pop(key, default)
+        return result
 
     def clear(self):
         self._write()
-        self.data = self.record['data'] = {}
+        self.record['data'] = {}
+        self.data = {}
 
     def keys(self):
         self._access()

@@ -16,8 +16,9 @@ class TestUserSlate(LgWebCase):
             @cherrypy.expose
             @lg_authority.groups('any')
             def fakeLogin(self):
-                cherrypy.session.login_as('admin', 'admin', [ 'admin' ])
-                return "Logged in as admin"
+                # External auth login... doesn't use our auth at all.
+                cherrypy.session.login_as('adminId', 'adminName', [ 'admin' ])
+                return "Logged in as adminName"
 
             @cherrypy.expose
             @lg_authority.groups('grue')
@@ -51,6 +52,11 @@ class TestUserSlate(LgWebCase):
         root = Root()
         cherrypy.tree.mount(root, '/')
 
+        lg_authority.Slate('session', None).storage \
+          .destroySectionBeCarefulWhenYouCallThis('session')
+        lg_authority.Slate('user_session', None).storage \
+          .destroySectionBeCarefulWhenYouCallThis('user_session')
+
     def test_authAccess(self):
         # Ensure we get a redirect notice since we're not logged in
         self.getPage("/")
@@ -82,6 +88,11 @@ class TestUserSlate(LgWebCase):
         self.getPage("/sessionGet/a")
         self.assertBody("myValue")
 
+        # Make sure setting it logged in works
+        self.getPage("/sessionSet", body={ "a": "newValue" })
+        self.getPage("/sessionGet/a")
+        self.assertBody("newValue")
+
     def test_userInformation(self):
         # Should get rejected...
         self.getPage("/")
@@ -92,5 +103,5 @@ class TestUserSlate(LgWebCase):
 
         # Ensure we have our name
         self.getPage("/userIdAndName")
-        self.assertBody("admin,admin")
+        self.assertBody("adminId,adminName")
 

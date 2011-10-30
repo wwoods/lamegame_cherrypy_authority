@@ -18,9 +18,6 @@ class UserObject:
     name = None
     name__doc = "The username of the current user"
 
-    slate = None
-    slate__doc = "The user's slate for the current request"
-    
     SESSION_USER_NOT_FROM_SLATE = '__name__not_from_db'
     SESSION_USER_NOT_FROM_SLATE__doc = """If set in session, indicates that 
         the user was logged in externally
@@ -30,6 +27,21 @@ class UserObject:
         self.id = session_dict['__id__']
         self.name = session_dict['__name__']
         self.groups = session_dict['groups']
+
+    def isOldPassword(self):
+        """Returns True if our password is old and should be changed."""
+        renew = config['site_password_renewal']
+        if renew is None:
+            return False
+        user = config.auth.get_user_from_id(self.id)
+        passw = config.auth.get_user_password(user)
+        if passw is None:
+            #No password, they don't need to renew probably!
+            return False
+        if (datetime.datetime.utcnow() - passw['date']).days >= renew:
+            return True
+        return False
+
 
 class AuthInterface(object):
     """The interface for auth-specific functions with the storage backend.
@@ -83,15 +95,7 @@ class AuthInterface(object):
         pname.update(data)
 
     def user_exists(self, username):
-        userrec = Slate('user', 'user-' + username)
-        userhold = Slate('user', 'userhold-' + username)
-        userold = Slate('user', 'userold-' + username)
-
-        if not userrec.is_expired():
-            return True
-        if not userhold.is_expired():
-            return True
-        if not userold.is_expired():
+        if self.get_user_from_name(username) is not None:
             return True
         return False
 
@@ -145,7 +149,17 @@ class AuthInterface(object):
         #Do this last to keep user's data in case of unexpected error
         act.expire()
 
-    def user_get_record(self, username):
+    def get_user_from_id(self, userId):
+        """Returns the record for the given user Id (or None).
+        """
+        if '-' in userId:
+            raise ValueError("Invalid user ID")
+        slate = Slate('user', userId)
+        if slate.is_expired():
+            slate = None
+        return slate
+
+    def get_user_from_name(self, username):
         """Returns the record for the given username (or None).
         """
         slate = Slate('user', 'un-' + username)
@@ -182,17 +196,16 @@ class AuthInterface(object):
         else:
             raise AuthError('This OpenID is in use')
 
-    def get_user_password(self, username):
+    def get_user_password(self, userSlate):
         """Returns a dict consisting of a "date" element that is the UTC time
         when the password was set, and a "pass" element that is the
         tuple/list (type, hashed_pass) for the given username.
         Returns None if the user specified does not have a password to
         authenticate through or does not exist.
         """
-        user = self.user_get_record(username)
-        if user.is_expired():
+        if userSlate.is_expired():
             return None
-        return user.get('auth_password', None)
+        return userSlate.get('auth_password', None)
 
     def set_user_password(self, username, new_pass):
         """Updates the given user's password.  new_pass is a tuple
@@ -204,7 +217,7 @@ class AuthInterface(object):
         user['auth_password'] = { 'date': datetime.datetime.utcnow(), 'pass': new_pass }
 
         #Clear any admin login flag
-        cherrypy.session.pop('authtime_admin')
+        cherrypy.serving.session.pop('authtime_admin')
 
     def _get_group_name(self, groupid):
         """Retrieves the name for the given groupid.  This is subclassed as
@@ -229,7 +242,7 @@ class AuthInterface(object):
         sname.update(data)
 
     def login(self, userId, userName=None, admin=False, groups=[], external_auth=False):
-        """Logs in the specified username.  Returns the user record.
+        """Logs in the specified user id / name.  Returns the user record.
         
         @param external_auth Set to True if this user doesn't come from local
             authentication.  Necessary to set or else we'll try to get their
@@ -241,7 +254,11 @@ class AuthInterface(object):
         """
         
         if not external_auth:
-            record = self.user_get_record(userId)
+            if userName is not None:
+                raise ValueError("Do not specify userName for internal auth")
+            record = self.get_user_from_id(userId)
+            if record is None:
+                raise ValueError("Invalid user ID")
             d = record.todict()
             d['__name__'] = record['name']
         else:
@@ -254,30 +271,39 @@ class AuthInterface(object):
                 }
             d = record
         d['__id__'] = userId
-        changeset = {
-            'auth': d
-            ,'authtime': datetime.datetime.utcnow()
-            }
+        d['authtime'] = datetime.datetime.utcnow()
         if admin:
-            changeset['authtime_admin'] = datetime.datetime.utcnow()
+            d['authtime_admin'] = datetime.datetime.utcnow()
 
         #Guard against session fixation - see regen_id docstring
-        cherrypy.session.regen_id()
-        cherrypy.session.update(changeset)
+        cherrypy.serving.sessionActual.regen_id()
+
+        #Port over session variables
+        user_session = Slate('user_session', userId, timeout=None)
+        for k,v in cherrypy.serving.sessionActual.items():
+            if k in user_session:
+                raise Exception("Session migration was not smooth: " + k)
+            user_session[k] = v
+            del cherrypy.serving.sessionActual[k]
+        cherrypy.serving.session = user_session
+
+        #Set our auth entry...
+        cherrypy.serving.sessionActual['auth'] = d
 
         self.serve_user_from_dict(d)
         return record
 
     def login_time_elapsed(self):
         """Gets the # of seconds elapsed since the last login."""
-        t = datetime.datetime.utcnow() - cherrypy.session['authtime']
+        t = datetime.datetime.utcnow() \
+          - cherrypy.serving.sessionActual['auth']['authtime']
         return t.days * 24 * 60 * 60 + t.seconds
 
     def login_is_admin(self):
         """Returns True if the current login is allowed to make administrative
         changes to the account, or False otherwise.
         """
-        authtime_admin = cherrypy.session.get('authtime_admin')
+        authtime_admin = cherrypy.serving.sessionActual['auth'].get('authtime_admin')
         if authtime_admin is None:
             return False
         t = datetime.datetime.utcnow() - authtime_admin
@@ -296,36 +322,27 @@ class AuthInterface(object):
 
     def logout(self):
         """Log out the current logged in user."""
-        if hasattr(cherrypy.session, 'expire'):
-            cherrypy.session.expire()
+        if hasattr(cherrypy.serving, 'sessionActual'):
+            cherrypy.serving.sessionActual.expire()
         else:
             cherrypy.lib.sessions.expire()
-
-    def old_password(self, username):
-        renew = config['site_password_renewal']
-        if renew is None:
-            return
-        passw = self.get_user_password(username)
-        if passw is None:
-            #No password, they don't need to renew probably!
-            return False
-        if (datetime.datetime.utcnow() - passw['date']).days >= renew:
-            return True
-        return False
 
     def test_password(self, username, password):
         "Returns username for OK, None for failed auth"
         if '@' in username:
             #Map e-mail to user
-            username = self.get_user_from_email(username)
-            if username is None:
+            user = self.get_user_from_email(username)
+            if user is None:
                 return None
-        expected = self.get_user_password(username)
+        else:
+            # Get the user record
+            user = self.get_user_from_name(username)
+        expected = self.get_user_password(user)
         if expected is None:
             return None
 
         if passwords.verify(password, expected['pass']):
-            return username
+            return user.id
         return None
 
     def get_group_name(self, groupid):

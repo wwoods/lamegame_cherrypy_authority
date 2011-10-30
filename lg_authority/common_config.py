@@ -68,11 +68,6 @@ config.update({
     #Most sections do not need any options, but if you want anything
     #indexed, or admin-editable, then this is where you specify it.
     ,
-    'site_storage_sections_session': {
-        'cache': [ 'auth', 'authtime', 'authtime_admin' ]
-        }
-    #Session vars to be cached at first read.
-    ,
     'site_storage_clean_freq': 60
     #Minutes between cleaning up expired site storage.
     ,
@@ -101,7 +96,8 @@ config.update({
             ,'groups': [ 'admin' ]
             }
         }
-    #User records to create if they do not already exist
+    #User records to create if they do not already exist.  Is a username to 
+    #data pairing; the user's ID will be generated.
     ,
     'site_group_list': {
         'admin': { 'name': 'Administrators' }

@@ -182,13 +182,9 @@ class AuthTool(cherrypy.Tool):
 
         if cherrypy.user:
             #Move the session over to the user session
-            cherrypy.serving.session = Slate('session_user', cherrypy.user.id
+            cherrypy.serving.session = Slate('user_session', cherrypy.user.id
                 ,timeout=None
                 )
-            for k,v in cherrypy.serving.sessionActual.items():
-                if k != 'auth':
-                    cherrypy.serving.session[k] = v
-                    del cherrypy.serving.sessionActual[k]
 
         #Now validate static permissions, if any
         access_groups = kwargs['groups']

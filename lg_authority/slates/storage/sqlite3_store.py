@@ -50,8 +50,7 @@ class Sqlite3Storage(SlateStorage):
             cur.close()
 
         now = datetime.datetime.utcnow()
-        dcache = self._conf.get('cache', [])
-        self.cache = dict([ (f, missing) for f in dcache ])
+        self.cache = {}
 
         if core is None or (core[2] is not None and core[2] < now):
             self._expired()
@@ -65,12 +64,11 @@ class Sqlite3Storage(SlateStorage):
             self.expired = False
             self.expiry = core[2]
 
-            #Fetch cached elements
-            for field in self.cache.keys():
-                cur.execute("""SELECT key,value FROM "{0}_data" WHERE id = ? AND key = ?""".format(self.section), (self.id,field))
-                val = cur.fetchone()
-                if val is not None:
-                    self.cache[field] = self._get(field, val[1])
+            #Fetch data elements
+            cur.execute("""SELECT key,value FROM "{0}_data" WHERE id = ?""".format(self.section), (self.id,))
+            vals = cur.fetchall()
+            for k,v in vals:
+                self.cache[k] = self._get(k, v)
 
             log('Loaded slate {1} with {0}'.format(self.cache, self.id))
 
@@ -200,25 +198,18 @@ class Sqlite3Storage(SlateStorage):
 
     def clear(self):
         self._clear_slate(self.section, self.id)
+        self.cache = {}
 
     def items(self):
         self._access()
         if self.expired:
             return []
-        db = self._get_db()
-        try:
-            cur = db.cursor()
-            cur.execute("""SELECT key,value FROM "{0}_data" WHERE id = ?""".format(self.section), (self.id,))
-            data = cur.fetchall()
-
-            return [ (k,self._get(k,v)) for k,v in data ]
-
-        finally:
-            cur.close()
+        return self.cache.items()
 
     def expire(self):
         self._access()
         self._clear_slate(self.section, self.id, True)
+        self.cache = {}
         self._expired()
 
     def is_expired(self):

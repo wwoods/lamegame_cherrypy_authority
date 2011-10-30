@@ -13,7 +13,7 @@ class TestLogin(LgWebCase):
 
             @cherrypy.expose
             def index(self):
-                return "Hello!"
+                return "{0} / {1}".format(cherrypy.user.id, cherrypy.user.name)
 
         cherrypy.config.update({
             'tools.lg_authority.on': True
@@ -33,4 +33,9 @@ class TestLogin(LgWebCase):
             )
 
         self.assertBody("This resource can be found at <a href='http://127.0.0.1:8080/'>http://127.0.0.1:8080/</a>.")
+
+        self.getPage("/")
+        # We're expecting an ID first, not our username.
+        self.assertNotEqual("admin / admin", self.body)
+        self.assertTrue(' / admin' in self.body, "User name not displayed")
 

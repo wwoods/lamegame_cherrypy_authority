@@ -42,6 +42,26 @@ class StorageTestCommon(object):
         store = self.getStorage()
         self.assertEqual([], store.items())
 
+    def test_concurrentWrite(self):
+        #Multiple changes must go through.  That's the whole point of slates.
+        #Load everything, write only what you need.
+        store = self.getStorage()
+        store.touch() # Make it unexpired to simulate simulataneous requests
+        store2 = self.getStorage()
+        store2.touch() # Ensure everything's loaded up
+
+        store.set('a', 'b')
+        store2.set('b', 'a')
+
+        # We don't expect them to update local cache from each other... that
+        # would just be inefficient.  While this seems like a silly thing
+        # to test for e.g. ram slates, it's nice to have consistent behavior.
+        self.assertEqual([ ('a', 'b') ], store.items())
+        self.assertEqual([ ('b', 'a') ], store2.items())
+
+        store = self.getStorage()
+        self.assertEqual([ ('a', 'b'), ('b', 'a') ], store.items())
+
     def test_expire(self):
         store = self.getStorage()
         store.set('a', 'b')

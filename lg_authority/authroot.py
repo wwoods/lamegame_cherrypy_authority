@@ -40,7 +40,7 @@ class AuthRoot(object):
         redirect = redirect or config['user_home_page']
         if hasattr(redirect, '__call__'):
              redirect = redirect()
-        if config.auth.old_password(cherrypy.user.id):
+        if cherrypy.user.isOldPassword():
             redirect = url_add_parms(
                 'change_password'
                 , { 'redirect': redirect, 'error': 'Your password is more than {old} days old.  It would be good to change it for security.'.format(old=config['site_password_renewal']) }
@@ -477,9 +477,9 @@ original destination</a></p>""".format(redirect)
     def login_password(self, username, password, redirect=None, admin=False):
         #Case insensitive usernames
         username = username.lower()
-        username = config.auth.test_password(username, password)
-        if username is not None:
-            config.auth.login(username, admin=admin)
+        userId = config.auth.test_password(username, password)
+        if userId is not None:
+            config.auth.login(userId, admin=admin)
             self.login_redirect(redirect)
         raise cherrypy.HTTPRedirect(
             url_add_parms(
