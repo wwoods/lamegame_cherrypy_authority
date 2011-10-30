@@ -74,7 +74,7 @@ class Session(Slate):
         cherrypy.serving.response.cookie[self.session_cookie] = 'expired'
         cherrypy.serving.response.cookie[self.session_cookie]['expires'] = httputil.HTTPDate(e)
         
-    def login_as(self, username, groups):
+    def login_as(self, userId, userName, groups):
         """Logs in as the specified username, does NOT query the database at all.
         Used for external authentication.  Coincidentally, re-id's the cookie 
         (invalidates old session).
@@ -83,7 +83,7 @@ class Session(Slate):
         @param groups Group to log in as
         
         """
-        config.auth.login(username, groups=groups, external_auth=True)
+        config.auth.login(userId, userName, groups=groups, external_auth=True)
 
     def regen_id(self):
         """Copies all of the data for this cookie, but regenerates

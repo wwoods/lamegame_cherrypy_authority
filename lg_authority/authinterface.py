@@ -10,10 +10,13 @@ class UserObject:
     """
 
     id = None
-    id__doc = "The username of the current user"
+    id__doc = "The id of the current user"
 
     groups = []
     groups__doc = "List of groups to which the user belongs"
+
+    name = None
+    name__doc = "The username of the current user"
 
     slate = None
     slate__doc = "The user's slate for the current request"
@@ -24,53 +27,9 @@ class UserObject:
         """
 
     def __init__(self, session_dict):
-        self.id = session_dict['__name__']
+        self.id = session_dict['__id__']
+        self.name = session_dict['__name__']
         self.groups = session_dict['groups']
-        self.slate = Slate(
-            cherrypy.serving.lg_authority['user_slate_section']
-            ,self.id
-            )
-
-        #If the name didn't come from the db, don't get the user slate (there
-        #isn't one, external auth.
-        if UserObject.SESSION_USER_NOT_FROM_SLATE not in session_dict:
-            #If they're logged in, they'd better be active.
-            self.__slate__ = config.auth.user_get_record(self.id)
-
-    def __getitem__(self, key):
-        return self.__slate__[key]
-
-    def __setitem__(self, key, value):
-        self.__slate__[key] = value
-
-    def __delitem___(self, key):
-        del self.__slate__[key]
-
-    def get(self, key, default=None):
-        return self.__slate__.get(key, default)
-
-    def pop(self, key, default=None):
-        """Return D[key] and remove key from D, or default."""
-        return self.__slate__.pop(key, default)
-
-    def update(self, d):
-        """D.update(E) -> None.  Update D from E: for k in E: D[k] = E[k]."""
-        self.__slate__.update(d)
-
-    def setdefault(self, key, default=None):
-        """D.setdefault(k[,d]) -> D.get(k,d), also set D[k]=d if k not in D."""
-        return self.__slate__.setdefault(key, default)
-
-    #We don't want to expose clear()..
-
-    def keys(self):
-        return self.__slate__.keys()
-
-    def values(self):
-        return self.__slate__.values()
-
-    def items(self):
-        return self.__slate__.items()
 
 class AuthInterface(object):
     """The interface for auth-specific functions with the storage backend.
@@ -92,19 +51,23 @@ class AuthInterface(object):
             return "Name may not contain the / symbol"
         return False
 
-    def user_create(self, username, data, timeout=missing):
+    def user_create(self, userName, data):
         """Inserts a user or raises an *Error"""
         kwargs = { 'timeout': None }
-        if timeout is not missing:
-            kwargs = { 'timeout': timeout }
 
-        user = Slate('user', 'user-' + username, timeout=None)
+        user = Slate('user', None, timeout=kwargs['timeout'])
         if not user.is_expired():
             raise AuthError('User already exists')
 
+        userNameSlate = Slate('user', 'un-' + userName, timeout=kwargs['timeout'])
+        if not userNameSlate.is_expired():
+            raise AuthError("User already exists")
+
+        userNameSlate.touch()
         user.update(data)
+        userNameSlate['slateId'] = user.id
        
-    def user_create_holder(self, username, data):
+    def user_create_holder(self, userName, data):
         """Inserts a placeholder for the given username.  Raises an AuthError
         if the username specified is already an existing user or placeholder
         user.
@@ -113,16 +76,8 @@ class AuthInterface(object):
         if config['site_registration_timeout'] != None:
             kwargs['timeout'] = config['site_registration_timeout'] * 60 * 24
             
-        sname = Slate('user', 'user-' + username)
-        if not sname.is_expired():
-            raise AuthError('Username already taken')
-            
-        pname = Slate('user', 'userhold-' + username, **kwargs)
+        pname = Slate('user', 'un-' + username, **kwargs)
         if not pname.is_expired():
-            raise AuthError('Username already taken')
-
-        oname = Slate('user', 'userold-' + username)
-        if not oname.is_expired():
             raise AuthError('Username already taken')
             
         #Make the holder
@@ -270,7 +225,7 @@ class AuthInterface(object):
 
         sname.update(data)
 
-    def login(self, username, admin=False, groups=[], external_auth=False):
+    def login(self, userId, userName=None, admin=False, groups=[], external_auth=False):
         """Logs in the specified username.  Returns the user record.
         
         @param external_auth Set to True if this user doesn't come from local
@@ -283,15 +238,19 @@ class AuthInterface(object):
         """
         
         if not external_auth:
-            record = self.user_get_record(username)
+            record = self.user_get_record(userId)
             d = record.todict()
+            d['__name__'] = record['name']
         else:
+            if userName is None:
+                raise ValueError("userName must be specified for external auth")
             record = {
                 'groups': groups
+                ,'__name__': userName
                 ,UserObject.SESSION_USER_NOT_FROM_SLATE: True
                 }
             d = record
-        d['__name__'] = username
+        d['__id__'] = userId
         changeset = {
             'auth': d
             ,'authtime': datetime.datetime.utcnow()

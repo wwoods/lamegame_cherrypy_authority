@@ -16,7 +16,7 @@ class TestUserSlate(LgWebCase):
             @cherrypy.expose
             @lg_authority.groups('any')
             def fakeLogin(self):
-                cherrypy.session.login_as('admin', [ 'admin' ])
+                cherrypy.session.login_as('admin', 'admin', [ 'admin' ])
                 return "Logged in as admin"
 
             @cherrypy.expose

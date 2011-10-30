@@ -41,6 +41,16 @@ class StorageTestCommon(object):
         store = self.getStorage(timeout=60)
         self.assertFalse(store.is_expired())
 
+    def test_setAndGet(self):
+        # Test that set and get work
+        store = self.getStorage(timeout=60)
+        store.set('j', 56)
+
+        self.assertEqual(56, store.get('j', None))
+
+        store = self.getStorage(timeout=60)
+        self.assertEqual(56, store.get('j', None))
+
     def test_touch(self):
         # Make sure that touch updates the timestamp
         # Create the slate storage

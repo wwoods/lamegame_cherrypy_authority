@@ -82,9 +82,9 @@ class AuthRoot(object):
 
             #TODO - this is horribly wrong.  we shouldn't be logging in the user
             #just to get their information and forward it.
-            username = config.auth.test_password(username, password)
+            userid = config.auth.test_password(username, password)
             if username is not None:
-                user = config.auth.login(username)
+                user = config.auth.login(userid)
             
         if cherrypy.user:
             #Filter out any, auth group from this list.  Leave that up
