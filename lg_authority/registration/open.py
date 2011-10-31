@@ -10,6 +10,6 @@ class OpenRegistrar(Registrar):
         return response
 
     def process_new_user(self, uname, uargs, authargs, redirect):
-        config.auth.user_create(uname, uargs)
-        config.auth.login(uname)
+        uid = config.auth.user_create(uname, uargs)
+        config.auth.login(uid)
 

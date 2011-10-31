@@ -64,7 +64,10 @@ class AuthInterface(object):
         return False
 
     def user_create(self, userName, data):
-        """Inserts a user or raises an *Error"""
+        """Inserts a user or raises an *Error
+        
+        Returns the user ID for the new user.
+        """
         kwargs = { 'timeout': None }
 
         userNameSlate = Slate('user', 'un-' + userName, timeout=kwargs['timeout'])
@@ -77,6 +80,7 @@ class AuthInterface(object):
         dataNew['name'] = userName
         user.update(dataNew)
         userNameSlate['userId'] = user.id
+        return user.id
        
     def user_create_holder(self, userName, data):
         """Inserts a placeholder for the given username.  Raises an AuthError
