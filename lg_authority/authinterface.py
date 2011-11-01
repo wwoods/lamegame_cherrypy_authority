@@ -1,4 +1,5 @@
 import datetime
+import uuid
 
 from .common import *
 from . import passwords
@@ -75,7 +76,10 @@ class AuthInterface(object):
             raise AuthError("User already exists")
         userNameSlate.touch()
 
-        user = Slate('user', None, timeout=kwargs['timeout'])
+        user = Slate('user', 'user-' + uuid.uuid4().hex
+            , timeout=kwargs['timeout'])
+        if not user.is_expired():
+            raise AuthError("User creation failed")
         dataNew = data.copy()
         dataNew['name'] = userName
         user.update(dataNew)
@@ -156,9 +160,7 @@ class AuthInterface(object):
     def get_user_from_id(self, userId):
         """Returns the record for the given user Id (or None).
         """
-        if '-' in userId:
-            raise ValueError("Invalid user ID")
-        slate = Slate('user', userId)
+        slate = Slate('user', 'user-' + userId)
         if slate.is_expired():
             slate = None
         return slate
@@ -168,7 +170,7 @@ class AuthInterface(object):
         """
         slate = Slate('user', 'un-' + username)
         if not slate.is_expired():
-            slate = Slate('user', slate['userId'])
+            slate = Slate('user', 'user-' + slate['userId'])
         else:
             slate = None
         return slate
@@ -215,7 +217,7 @@ class AuthInterface(object):
         """Updates the given user's password.  new_pass is a tuple
         (algorithm, hashed) that is the user's new password.
         """
-        user = Slate('user', 'user-' + username)
+        user = self.get_user_from_name(username)
         if user.is_expired():
             raise ValueError('User not found')
         user['auth_password'] = { 'date': datetime.datetime.utcnow(), 'pass': new_pass }
@@ -260,6 +262,7 @@ class AuthInterface(object):
         if not external_auth:
             if userName is not None:
                 raise ValueError("Do not specify userName for internal auth")
+            print("got user ID " + userId)
             record = self.get_user_from_id(userId)
             if record is None:
                 raise ValueError("Invalid user ID")
@@ -332,7 +335,7 @@ class AuthInterface(object):
             cherrypy.lib.sessions.expire()
 
     def test_password(self, username, password):
-        "Returns username for OK, None for failed auth"
+        "Returns user id for OK, None for failed auth"
         if '@' in username:
             #Map e-mail to user
             user = self.get_user_from_email(username)
@@ -346,7 +349,7 @@ class AuthInterface(object):
             return None
 
         if passwords.verify(password, expected['pass']):
-            return user.id
+            return user.id[5:]
         return None
 
     def get_group_name(self, groupid):
