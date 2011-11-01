@@ -74,17 +74,17 @@ class AuthInterface(object):
         userNameSlate = Slate('user', 'un-' + userName, timeout=kwargs['timeout'])
         if not userNameSlate.is_expired():
             raise AuthError("User already exists")
-        userNameSlate.touch()
 
         user = Slate('user', 'user-' + uuid.uuid4().hex
             , timeout=kwargs['timeout'])
         if not user.is_expired():
             raise AuthError("User creation failed")
+
         dataNew = data.copy()
         dataNew['name'] = userName
         user.update(dataNew)
-        userNameSlate['userId'] = user.id
-        return user.id
+        userNameSlate['userId'] = user.id[5:]
+        return user.id[5:]
        
     def user_create_holder(self, userName, data):
         """Inserts a placeholder for the given username.  Raises an AuthError
