@@ -26,11 +26,18 @@ class TestLogin(LgWebCase):
 
         root = Root()
         cherrypy.tree.mount(root, '/')
+        
+    def test_nonexistLogin(self):
+        self.getPage("/auth/login_password", method='POST'
+            , body = { 'username': 'blah', 'password': 'hi' }
+        )
+        self.assertTrue('Invalid+Credentials' in self.body, "Did not show Invalid Credentials")
+        self.assertStatus('303 See Other')
 
     def test_passwordLogin(self):
         self.getPage("/auth/login_password", method='POST'
             , body = { 'username': 'admin', 'password': 'admin' }
-            )
+        )
 
         self.assertBody("This resource can be found at <a href='http://127.0.0.1:54583/'>http://127.0.0.1:54583/</a>.")
 

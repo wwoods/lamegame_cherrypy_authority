@@ -340,11 +340,13 @@ class AuthInterface(object):
         if '@' in username:
             #Map e-mail to user
             user = self.get_user_from_email(username)
-            if user is None:
-                return None
         else:
             # Get the user record
             user = self.get_user_from_name(username)
+            
+        if user is None:
+            return None
+            
         expected = self.get_user_password(user)
         if expected is None:
             return None
