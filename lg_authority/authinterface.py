@@ -71,11 +71,11 @@ class AuthInterface(object):
         """
         kwargs = { 'timeout': None }
 
-        userNameSlate = Slate('user', 'un-' + userName, timeout=kwargs['timeout'])
+        userNameSlate = Slate('username', userName, timeout=kwargs['timeout'])
         if not userNameSlate.is_expired():
             raise AuthError("User already exists")
 
-        user = Slate('user', 'user-' + uuid.uuid4().hex
+        user = Slate('user', uuid.uuid4().hex
             , timeout=kwargs['timeout'])
         if not user.is_expired():
             raise AuthError("User creation failed")
@@ -83,8 +83,8 @@ class AuthInterface(object):
         dataNew = data.copy()
         dataNew['name'] = userName
         user.update(dataNew)
-        userNameSlate['userId'] = user.id[5:]
-        return user.id[5:]
+        userNameSlate['userId'] = user.id
+        return user.id
        
     def user_create_holder(self, userName, data):
         """Inserts a placeholder for the given username.  Raises an AuthError
@@ -95,7 +95,7 @@ class AuthInterface(object):
         if config['site_registration_timeout'] != None:
             kwargs['timeout'] = config['site_registration_timeout'] * 60 * 24
             
-        pname = Slate('user', 'un-' + username, **kwargs)
+        pname = Slate('username', username, **kwargs)
         if not pname.is_expired():
             raise AuthError('Username already taken')
             
@@ -113,12 +113,12 @@ class AuthInterface(object):
 
     def user_promote_holder(self, holder):
         """Promotes the passed holder slate to a full user"""
-        uname = 'user-' + holder.id[len('userhold-'):]
+        uid = holder.id
         uargs = {}
         for k,v in holder.items():
             uargs[k] = v
 
-        user = Slate('user', uname)
+        user = Slate('user', uid)
         if not user.is_expired():
             raise AuthError('User already activated')
 
@@ -136,7 +136,7 @@ class AuthInterface(object):
             raise AuthError('Cannot activate non-inactive user')
 
         items = inact.todict()
-        nname = 'user-' + username
+        nname = username
         s = Slate('user', nname)
         s.update(items)
 
@@ -144,7 +144,7 @@ class AuthInterface(object):
         inact.expire()
 
     def user_deactivate(self, username):
-        oname = 'user-' + username
+        oname = username
         act = Slate('user', oname)
         if act.is_expired():
             raise AuthError('Cannot deactive non-active user')
@@ -160,7 +160,7 @@ class AuthInterface(object):
     def get_user_from_id(self, userId):
         """Returns the record for the given user Id (or None).
         """
-        slate = Slate('user', 'user-' + userId)
+        slate = Slate('user', userId)
         if slate.is_expired():
             slate = None
         return slate
@@ -168,25 +168,26 @@ class AuthInterface(object):
     def get_user_from_name(self, username):
         """Returns the record for the given username (or None).
         """
-        slate = Slate('user', 'un-' + username)
+        slate = Slate('username', username)
         if not slate.is_expired():
-            slate = Slate('user', 'user-' + slate['userId'])
+            slate = Slate('user', slate['userId'])
         else:
             slate = None
         return slate
 
     def get_user_from_email(self, email):
-        """Returns the username for the given email, or None.
+        """Returns the user ID for the given email, or None.
         """
         result = config.Slate.find_with('user', 'emails', email)
-        if len(result) == 1 and result[0].id.startswith('user-'):
-            return result[0].id[len('user-'):]
-        elif len(result) == 1: #Inactive user
-            raise AuthError('This e-mail is in use by an inactive user')
-        elif len(result) == 0:
-            return None
-        else:
+        if len(result) == 1:
+            result = result[0]
+            if result.get('inactive', False):
+                raise AuthError('This e-mail is in use by an inactive user')
+            return result.id
+        elif len(result) > 1:
             raise AuthError("More than one user has this e-mail!")
+        else:
+            return None
 
     def get_user_from_openid(self, openid_url):
         """Returns the username for the given openid_url, or None.
@@ -195,12 +196,12 @@ class AuthInterface(object):
         if len(result) == 0:
             return None
         elif len(result) == 1:
-            if result[0].id.startswith('user-'):
-                return result[0].id[len('user-'):]
-            #Probably a disabled account or holder
-            raise AuthError('This OpenID is in use by an inactive user')
+            result = result[0]
+            if result.get('inactive', False):
+                raise AuthError('This OpenID is in use by an inactive user')
+            return result.id
         else:
-            raise AuthError('This OpenID is in use')
+            raise AuthError('This OpenID is in use by multiple users')
 
     def get_user_password(self, userSlate):
         """Returns a dict consisting of a "date" element that is the UTC time
@@ -230,7 +231,7 @@ class AuthInterface(object):
         _get_group_name because get_group_name automatically handles user-,
         any, and auth groups
         """
-        group = Slate('user', 'group-' + groupid)
+        group = Slate('group', groupid)
         if not group.is_expired():
             return group['name']
         return 'Unnamed ({0})'.format(groupid)
@@ -241,7 +242,7 @@ class AuthInterface(object):
         if timeout is not missing:
             kwargs = { 'timeout': timeout }
 
-        sname = Slate('user', 'group-' + groupid, **kwargs)
+        sname = Slate('group', groupid, **kwargs)
         if not sname.is_expired():
             raise AuthError('Group already exists')
 
@@ -349,7 +350,7 @@ class AuthInterface(object):
             return None
 
         if passwords.verify(password, expected['pass']):
-            return user.id[5:]
+            return user.id
         return None
 
     def get_group_name(self, groupid):
@@ -363,6 +364,7 @@ class AuthInterface(object):
         elif groupid == 'auth':
             return 'Logged In Users'
         elif groupid.startswith('user-'):
-            return 'User - ' + groupid[5:]
+            user = self.get_user_from_id(groupid[5:])
+            return 'User - ' + user.get('name', '(error)')
         return self._get_group_name(groupid)
 

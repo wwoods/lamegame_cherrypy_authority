@@ -25,10 +25,10 @@ class AdminRoot(object):
     @cherrypy.expose
     def index(self):
         maxusers = 100
-        ulist = config.Slate.find_between('user', 'user-', 'user.', maxusers)
-        unames = [ u.id[5:] for u in ulist ]
+        ulist = config.Slate.find_between('user', '', '.', maxusers)
+        udata = [ (u.id, u['name']) for u in ulist ]
         users = [ 
-            '<li><a href="edit_user?user={0}">{0}</a></li>'.format(u) for u in unames 
+            '<li><a href="edit_user?user={0}">{0}</a></li>'.format(id, name) for id,name in unames 
             ]
         maxiusers = 100
         ulist = config.Slate.find_between('user', 'userhold-', 'userhold.', maxiusers)
