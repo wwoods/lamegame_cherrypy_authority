@@ -13,7 +13,7 @@ from .slates import Slate
 class Session(Slate):
     """A container that maps session ID's to an underlying slate."""
 
-    session_cookie = 'session'
+    session_cookie = 'thisShouldAlwaysComeFromConfig'
     session_cookie__doc = """Name of cookie where session id is stored"""
 
     timeout=60
@@ -24,7 +24,9 @@ class Session(Slate):
 
     def __init__(self, id=None, **kwargs):
         self.timeout = kwargs.pop('session_timeout', Session.timeout) * 60
-        self.session_cookie = kwargs.get('session_cookie', self.session_cookie)
+        self.session_cookie = kwargs.get('session_cookie', None)
+        if self.session_cookie is None:
+            raise Exception('session_cookie not passed')
 
         self.originalid = id
         #Check for expired session, and assign new identifier if

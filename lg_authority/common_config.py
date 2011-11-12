@@ -158,7 +158,7 @@ config.update({
     #Minutes until a session expires; applicable only if override_sessions is
     #True.
     ,
-    'session_cookie': 'session_id'
+    'session_cookie': 'session'
     #The cookie value used to read the session id.  Applicable only if 
     #override_sessions is True.
     ,

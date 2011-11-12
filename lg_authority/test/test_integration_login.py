@@ -36,6 +36,7 @@ class TestLogin(LgWebCase):
 
         self.getPage("/")
         # We're expecting an ID first, not our username.
+        self.assertStatus('200 OK')
         self.assertNotEqual("admin / admin", self.body)
         self.assertTrue(' / admin' in self.body, "User name not displayed")
 

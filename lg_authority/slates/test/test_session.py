@@ -2,6 +2,7 @@ import unittest
 
 from lg_authority.tools import AuthTool
 from lg_authority.slates.session import Session
+from lg_authority.slates import Slate
 
 class TestSession(unittest.TestCase):
     
@@ -10,12 +11,16 @@ class TestSession(unittest.TestCase):
         ma = at._merged_args({ })
         AuthTool()._setup_initialize(ma)
         
-        Session('a').storage.destroySectionBeCarefulWhenYouCallThis('session')
-        Session('a').storage.destroySectionBeCarefulWhenYouCallThis('other')
+        Slate('session', None).storage.destroySectionBeCarefulWhenYouCallThis(
+            'session'
+        )
+        Slate('other', None).storage.destroySectionBeCarefulWhenYouCallThis(
+            'other'
+        )
         
     
     def test_diffCookieDiffStorage(self):
-        s1 = Session('a')
+        s1 = Session('a', session_cookie='session')
         s1['var'] = 'value'
         s2 = Session(s1.id, session_cookie='other')
         self.assertNotEqual(s1['var'], s2.get('var'))
@@ -24,8 +29,8 @@ class TestSession(unittest.TestCase):
         
         
     def test_regress_valueUpdate(self):
-        s1 = Session('a')
+        s1 = Session('a', session_cookie='session')
         s1['var'] = 'value'
-        s2 = Session(s1.id)
+        s2 = Session(s1.id, session_cookie='session')
         self.assertEqual(s1['var'], s2.get('var'))
     
