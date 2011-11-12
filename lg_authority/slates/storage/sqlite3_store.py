@@ -46,31 +46,32 @@ class Sqlite3Storage(SlateStorage):
             cur = db.cursor()
             cur.execute("""SELECT id,timeout,expire FROM "{0}" WHERE id = ?""".format(self.section), (self.id,))
             core = cur.fetchone()
+
+            now = datetime.datetime.utcnow()
+            self.cache = {}
+    
+            if core is None or (core[2] is not None and core[2] < now):
+                self._expired()
+                if core is not None:
+                    self.expired = 'existed'
+                log('Loaded new {1}slate: {0}'.format(
+                    self.id
+                    , '(expired) ' if core is not None else ''
+                    ))
+            else:
+                self.expired = False
+                self.expiry = core[2]
+    
+                #Fetch data elements
+                cur.execute("""SELECT key,value FROM "{0}_data" WHERE id = ?""".format(self.section), (self.id,))
+                vals = cur.fetchall()
+                for k,v in vals:
+                    self.cache[k] = self._get(k, v)
+    
+                log('Loaded slate {1} with {0}'.format(self.cache, self.id))
+                
         finally:
             cur.close()
-
-        now = datetime.datetime.utcnow()
-        self.cache = {}
-
-        if core is None or (core[2] is not None and core[2] < now):
-            self._expired()
-            if core is not None:
-                self.expired = 'existed'
-            log('Loaded new {1}slate: {0}'.format(
-                self.id
-                , '(expired) ' if core is not None else ''
-                ))
-        else:
-            self.expired = False
-            self.expiry = core[2]
-
-            #Fetch data elements
-            cur.execute("""SELECT key,value FROM "{0}_data" WHERE id = ?""".format(self.section), (self.id,))
-            vals = cur.fetchall()
-            for k,v in vals:
-                self.cache[k] = self._get(k, v)
-
-            log('Loaded slate {1} with {0}'.format(self.cache, self.id))
 
     def _write(self, fields=None):
         """Called before any write operation to setup the storage.

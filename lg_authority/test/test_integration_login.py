@@ -32,7 +32,7 @@ class TestLogin(LgWebCase):
             , body = { 'username': 'admin', 'password': 'admin' }
             )
 
-        self.assertBody("This resource can be found at <a href='http://127.0.0.1:8080/'>http://127.0.0.1:8080/</a>.")
+        self.assertBody("This resource can be found at <a href='http://127.0.0.1:54583/'>http://127.0.0.1:54583/</a>.")
 
         self.getPage("/")
         # We're expecting an ID first, not our username.
