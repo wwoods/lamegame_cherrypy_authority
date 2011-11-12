@@ -76,8 +76,10 @@ class RamStorage(SlateStorage):
             self.record.pop('expire', None)
 
     def __str__(self):
-        self._access()
-        return "RAM{0}".format(self.data or '(empty)')
+        desc = '_id-' + self.id
+        if hasattr(self, '_first_access'):
+            desc = str(self.data or '(empty)')
+        return "RAM{0}".format(desc)
 
     def __repr__(self):
         return str(self)

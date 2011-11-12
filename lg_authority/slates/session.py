@@ -13,7 +13,7 @@ from .slates import Slate
 class Session(Slate):
     """A container that maps session ID's to an underlying slate."""
 
-    session_cookie = 'session_id'
+    session_cookie = 'session'
     session_cookie__doc = """Name of cookie where session id is stored"""
 
     timeout=60
@@ -106,11 +106,12 @@ class Session(Slate):
         new_timeout = self.timeout
         Slate.__init__(
             self
-            , 'session'
+            , self.session_cookie # Use the cookie name to isolate session data
             , self.originalid
             , timeout=new_timeout
             )
         if self.is_expired():
+            # If we're expired, we want a new id to prevent session fixation.
             Slate.__init__(self, 'session', None, timeout=new_timeout)
             log('Session {0} expired -> {1}'.format(self.originalid, self.id))
 
@@ -158,7 +159,7 @@ def init_session(
         return
     
     request = cherrypy.serving.request
-    name = session_cookie = kwargs.get('session_cookie', Session.session_cookie)
+    session_cookie = kwargs.get('session_cookie', Session.session_cookie)
     cookie_timeout = kwargs.get('session_timeout', Session.timeout)
     
     # Check if request came with a session ID
@@ -206,7 +207,7 @@ def send_session_cookie(
           )
 
 
-def set_response_cookie(path=None, path_header=None, name='session_id',
+def set_response_cookie(path, path_header, name,
                         timeout=60, domain=None, secure=False, httponly=True):
     """Set a response cookie for the client.
     
