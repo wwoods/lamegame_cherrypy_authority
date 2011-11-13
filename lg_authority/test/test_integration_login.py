@@ -22,7 +22,9 @@ class TestLogin(LgWebCase):
             ,'tools.lg_authority.site_storage_conf': {
                 'db': 'lg_auth_testroot'
                 }
-            })
+            ,'tools.lg_authority.session_cookie': 'not_standard' #not std for 
+                                                                 #regression
+          })
 
         root = Root()
         cherrypy.tree.mount(root, '/')
