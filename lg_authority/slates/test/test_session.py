@@ -9,7 +9,7 @@ class TestSession(unittest.TestCase):
     def setUp(self):
         at = AuthTool()
         ma = at._merged_args({ })
-        AuthTool()._setup_initialize(ma)
+        at._setup_initialize(ma)
         
         Slate('session', None).storage.destroySectionBeCarefulWhenYouCallThis(
             'session'

@@ -179,15 +179,8 @@ class AdminRoot(object):
 
     @cherrypy.expose
     def edit_user_delete(self, userId):
-        user = config.auth.get_user_from_id(userId)
-        if user is not None and user.get('inactive', False):
-            user.expire()
-            raise cherrypy.HTTPRedirect(cherrypy.url('./'))
-        elif user is not None:
-            return "Cannot delete active user; deactivation is required to " \
-                + "remind administrators that deleting a record can result " \
-                + "in data corruption."
-        return "User does not exist"
+        config.auth.user_delete(userId)
+        raise cherrypy.HTTPRedirect(cherrypy.url('./'))
 
     @cherrypy.expose
     def groups(self):

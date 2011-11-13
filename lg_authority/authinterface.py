@@ -110,6 +110,23 @@ class AuthInterface(object):
         newData['holder'] = True
         pname.update(newData)
 
+    def user_delete(self, userId):
+        user = self.get_user_from_id(userId)
+        if user is not None and user.get('inactive', False):
+            username = user.get('name')
+            if username is not None:
+                uname = Slate('username', username)
+                if uname.get('userId') == userId:
+                    uname.expire()
+            user.expire()
+        elif user is not None:
+            raise AuthError("Cannot delete active user; deactivation is " \
+                + "required to " \
+                + "remind administrators that deleting a record can result " \
+                + "in data corruption.")
+        else:
+            raise AuthError("User does not exist")
+
     def user_exists(self, username):
         if not Slate('username', username).is_expired():
             return True
@@ -135,7 +152,7 @@ class AuthInterface(object):
 
         user.update(uargs)
         uid = user.id
-        holder['slateId'] = uid
+        holder['userId'] = uid
 
         return uid
 
@@ -391,8 +408,8 @@ class AuthInterface(object):
         is ok.
         """
         allowed = re.compile('^[A-Za-z0-9_.]+$')
-        if len(username) > 20:
-            return "Usernames cannot be longer than 20 characters."
+        if len(username) > 40:
+            return "Usernames cannot be longer than 40 characters."
         if username.startswith('zzz'):
             return "Invalid username."
         if allowed.match(username) is None:
