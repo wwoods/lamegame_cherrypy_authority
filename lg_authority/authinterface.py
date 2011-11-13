@@ -1,4 +1,5 @@
 import datetime
+import re
 import uuid
 
 from .common import *
@@ -71,12 +72,15 @@ class AuthInterface(object):
         """
         kwargs = { 'timeout': None }
 
+        usernameError = self._validateUsername(userName)
+        if usernameError is not None:
+            raise AuthError(usernameError)
+
         userNameSlate = Slate('username', userName, timeout=kwargs['timeout'])
         if not userNameSlate.is_expired():
             raise AuthError("User already exists")
 
-        user = Slate('user', uuid.uuid4().hex
-            , timeout=kwargs['timeout'])
+        user = Slate('user', None, timeout=kwargs['timeout'])
         if not user.is_expired():
             raise AuthError("User creation failed")
 
@@ -90,6 +94,8 @@ class AuthInterface(object):
         """Inserts a placeholder for the given username.  Raises an AuthError
         if the username specified is already an existing user or placeholder
         user.
+
+        data is any authentication data to associate with the user.
         """
         kwargs = { 'timeout': None }
         if config['site_registration_timeout'] != None:
@@ -100,62 +106,52 @@ class AuthInterface(object):
             raise AuthError('Username already taken')
             
         #Make the holder
-        pname.update(data)
+        newData = data.copy()
+        newData['holder'] = True
+        pname.update(newData)
 
     def user_exists(self, username):
-        if self.get_user_from_name(username) is not None:
+        if not Slate('username', username).is_expired():
             return True
         return False
 
-    def user_get_holder(self, username):
-        pname = 'userhold-' + username
-        return Slate('user', pname)
-
     def user_promote_holder(self, holder):
-        """Promotes the passed holder slate to a full user"""
-        uid = holder.id
+        """Promotes the passed holder slate to a full user.  Assumes that
+        holder is a valid slate.
+
+        Returns the created user ID.
+        """
+        if not holder.get('holder', False):
+            raise AuthError('User already activated')
+        del holder['holder']
+
         uargs = {}
         for k,v in holder.items():
             uargs[k] = v
 
-        user = Slate('user', uid)
+        user = Slate('user', None)
         if not user.is_expired():
-            raise AuthError('User already activated')
+            raise AuthError('User creation error')
 
         user.update(uargs)
-        holder.expire()
+        uid = user.id
+        holder['slateId'] = uid
 
-    def user_get_inactive(self, username):
-        pname = 'userold-' + username
-        return Slate('user', pname)
+        return uid
 
-    def user_activate(self, username):
-        pname = 'userold-' + username
-        inact = Slate('user', pname)
-        if inact.is_expired():
+    def user_activate(self, userId):
+        user = self.get_user_from_id(userId)
+        if user.is_expired() or not user.get('inactive', False):
             raise AuthError('Cannot activate non-inactive user')
 
-        items = inact.todict()
-        nname = username
-        s = Slate('user', nname)
-        s.update(items)
+        del user['inactive']
 
-        #Do this last to keep the user's data in case of unexpected error.
-        inact.expire()
+    def user_deactivate(self, userId):
+        user = self.get_user_from_id(userId)
+        if user.is_expired():
+            raise AuthError("Invalid user ID")
 
-    def user_deactivate(self, username):
-        oname = username
-        act = Slate('user', oname)
-        if act.is_expired():
-            raise AuthError('Cannot deactive non-active user')
-
-        items = act.todict()
-        nname = 'userold-' + username
-        s = Slate('user', nname)
-        s.update(items)
-
-        #Do this last to keep user's data in case of unexpected error
-        act.expire()
+        user['inactive'] = datetime.datetime.utcnow()
 
     def get_user_from_id(self, userId):
         """Returns the record for the given user Id (or None).
@@ -166,11 +162,18 @@ class AuthInterface(object):
         return slate
 
     def get_user_from_name(self, username):
-        """Returns the record for the given username (or None).
+        """Returns the record for the given username (or None if the user
+        does not exist).
         """
         slate = Slate('username', username)
         if not slate.is_expired():
+            userId = slate['userId']
+            if userId is None:
+                # This record is probably a holder
+                return None
             slate = Slate('user', slate['userId'])
+            if slate.is_expired():
+                return None
         else:
             slate = None
         return slate
@@ -202,6 +205,15 @@ class AuthInterface(object):
             return result.id
         else:
             raise AuthError('This OpenID is in use by multiple users')
+
+    def get_user_holder(self, username):
+        """Returns the given username record, only if that record has the
+        "holder" property set to True.  Otherwise returns None.
+        """
+        result = Slate('username', username)
+        if result.is_expired() or not result.get('holder', False):
+            return None
+        return result
 
     def get_user_password(self, userSlate):
         """Returns a dict consisting of a "date" element that is the UTC time
@@ -372,4 +384,18 @@ class AuthInterface(object):
             user = self.get_user_from_id(groupid[5:])
             return 'User - ' + user.get('name', '(error)')
         return self._get_group_name(groupid)
+
+    def _validateUsername(self, username):
+        """Verify that the given username is a valid user name, and return
+        a suitable error message if it does not.  Return None if the name
+        is ok.
+        """
+        allowed = re.compile('^[A-Za-z0-9_.]+$')
+        if len(username) > 20:
+            return "Usernames cannot be longer than 20 characters."
+        if username.startswith('zzz'):
+            return "Invalid username."
+        if allowed.match(username) is None:
+            return "Names must only contain latin characters, underscores, and periods."
+        return None
 

@@ -127,6 +127,21 @@ class StorageTestCommon(object):
         store = self.getStorage(timeout=60)
         self.assertEqual(56, store.get('j', None))
 
+    def test_timeoutValues(self):
+        # Test that the different timeout meanings catch on
+        store = self.getStorage(timeout=60)
+        store.touch()
+
+        # Should keep timeout
+        store = self.getStorage(timeout={})
+        store.set('a', 'b')
+        self.assertEqual(store.timeout, 60)
+
+        # Should change timeout
+        store = self.getStorage(timeout=20)
+        store.set('c', 'd')
+        self.assertEqual(store.timeout, 20)
+
     def test_touch(self):
         # Make sure that touch updates the timestamp
         # Create the slate storage

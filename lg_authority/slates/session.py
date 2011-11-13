@@ -116,10 +116,6 @@ class Session(Slate):
             # If we're expired, we want a new id to prevent session fixation.
             Slate.__init__(self, self.session_cookie, None, timeout=new_timeout)
             log('Session {0} expired -> {1}'.format(self.originalid, self.id))
-
-    def _generate_id(self):
-        """Return a new session id."""
-        return binascii.hexlify(os.urandom(20)).decode('ascii')
     
 def init_session(
     session_path=None

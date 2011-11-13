@@ -34,10 +34,11 @@ class RamStorage(SlateStorage):
             log('Loaded new (expired) slate')
         else:
             self.expired = False
-            self.data = self.section_store[id]['data'].copy()
-            self.expiry = self.section_store[id].get('expire', None)
+            record = self.section_store[id]
+            self.data = record['data'].copy()
+            self.expiry = record.get('expire', None)
             if isinstance(self.timeout, dict):
-                self.timeout = self.section_store['timeout']
+                self.timeout = record['timeout']
             log('Loaded slate with {0}'.format(self.data))
 
     def _write(self):

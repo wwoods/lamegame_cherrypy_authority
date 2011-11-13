@@ -67,6 +67,9 @@ class Sqlite3Storage(SlateStorage):
                 vals = cur.fetchall()
                 for k,v in vals:
                     self.cache[k] = self._get(k, v)
+
+                if isinstance(self.timeout, dict):
+                    self.timeout = core[1]
     
                 log('Loaded slate {1} with {0}'.format(self.cache, self.id))
                 
@@ -86,6 +89,12 @@ class Sqlite3Storage(SlateStorage):
 
         for k,v in fields.items():
             self.cache[k] = v
+
+        if isinstance(self.timeout, dict):
+            if self.expired:
+                raise ArgumentError("Must specify a timeout for new slates")
+            else:
+                raise ArgumentError("Code assertion - should have timeout")
 
         db = self._get_db()
         with db:

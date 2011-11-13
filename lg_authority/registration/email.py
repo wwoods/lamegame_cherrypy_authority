@@ -55,11 +55,11 @@ class EmailRegistrar(object):
         config.auth.user_create_holder(uname, uargs)
 
     def response_link(self, username=None, key=None, redirect=None):
-        holder = config.auth.user_get_holder(username)
-        if not holder.is_expired() and key == holder.get('email_code'):
+        holder = config.auth.get_user_holder(username)
+        if key == holder.get('email_code'):
             del holder['email_code']
-            config.auth.user_promote_holder(holder)
-            config.auth.login(username)
+            userId = config.auth.user_promote_holder(holder)
+            config.auth.login(userId)
             response = "<p>Account activated.  You are now logged in.</p>"
             if redirect:
                 response += '<p><a href="{0}">Click to continue</a></p>'.format(redirect)
