@@ -140,6 +140,7 @@ class AdminRoot(object):
                 
         else:
             body.append('<h2>User does not exist</h2>')
+            body.append('<form method="POST" action="edit_user_create?userName={0}"><input type="submit" value="Create User"/></form>'.format(userName))
 
         return self.make_page("""
 <h1>User '{user}'</h1>
@@ -181,6 +182,11 @@ class AdminRoot(object):
     def edit_user_delete(self, userId):
         config.auth.user_delete(userId)
         raise cherrypy.HTTPRedirect(cherrypy.url('./'))
+
+    @cherrypy.expose
+    def edit_user_create(self, userName):
+        userId = config.auth.user_create(userName, {})
+        raise cherrypy.HTTPRedirect(cherrypy.url('edit_user?userId={0}'.format(userId)))
 
     @cherrypy.expose
     def groups(self):
