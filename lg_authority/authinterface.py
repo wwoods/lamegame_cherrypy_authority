@@ -289,6 +289,9 @@ class AuthInterface(object):
         #Port over session variables
         user_session = Slate('user_session', userId, timeout=None)
         for k,v in cherrypy.serving.sessionActual.items():
+            if k == 'auth':
+                # Never port over auth data
+                continue
             if k in user_session:
                 raise Exception("Session migration was not smooth: " + k)
             user_session[k] = v
