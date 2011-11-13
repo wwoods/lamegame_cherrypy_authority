@@ -27,12 +27,12 @@ class TestAdmin(LgWebCase):
 
     def setUp(self):
         LgWebCase.setUp(self)
-        self.getPage("/auth/login_password", method='POST'
+        self.getPage("/auth/login_password/", method='POST'
             , body = { 'username': 'admin', 'password': 'admin' }
         )
 
 
     def test_index(self):
-        self.getPage("/auth/admin")
-        self.assertTrue('a href="edit_user' in self.body, "No edit user link?")
+        self.getPage("/auth/admin/")
+        self.assertTrue('Active Users' in self.body, "Page fail: " + self.body)
 

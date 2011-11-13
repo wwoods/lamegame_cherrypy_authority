@@ -29,7 +29,6 @@ class PymongoStorage(SlateStorage):
     def _expired(self):
         """Call to set this Slate's local state as expired"""
         self.expired = True
-        self._id = None
         for j in self.cache.keys():
             self.cache[j] = missing
 
@@ -39,26 +38,21 @@ class PymongoStorage(SlateStorage):
             return
         self._first_access = True
 
-        core = self._section.find_one({ 'name': self.id })
+        core = self._section.find_one({ '_id': self.id })
         now = datetime.datetime.utcnow()
 
         if core is None or core.get('expire', now) < now:
             self.cache = {}
             self._expired()
-            if core is not None:
-                self._id = core['_id']
-            else:
-                self._id = None
             self.expiry = None
             log('Loaded new {1}slate: {0}'.format(
                 self.id
-                , '(expired; overwriting) '.format(self._id) 
-                    if self._id is not None 
+                , '(expired; overwriting) '
+                    if core is not None 
                     else ''
                 ))
         else:
             self.expired = False
-            self._id = core['_id']
             self.cache = core.get('data', {})
             for k,v in self.cache.items():
                 self.cache[k] = self._get(k,v)
@@ -93,19 +87,16 @@ class PymongoStorage(SlateStorage):
                 self.id = PymongoStorage.generateId()
 
             new_dict = {
-                'name': self.id
+                '_id': self.id
                 ,'data': {}
                 }
             if useTimeout:
                 new_dict['timeout'] = self.timeout
                 if self.timeout is not None:
                     new_dict['expire'] = datetime.datetime.utcnow() + datetime.timedelta(seconds=self.timeout)
-            if self._id is not None:
-                new_dict['_id'] = self._id
             for k,v in fields.items():
                 new_dict['data'][k] = self._set(k,v)
             self._section.save(new_dict)
-            self._id = new_dict['_id']
             self.expired = False
         else:
             updates = {}
@@ -128,7 +119,7 @@ class PymongoStorage(SlateStorage):
                 else:
                     sets['data.' + k] = self._set(k, v)
 
-            self._section.update({ '_id': self._id }, updates)
+            self._section.update({ '_id': self.id }, updates)
 
     def __str__(self):
         return "PYMONGO({0})".format(self.id)
@@ -182,7 +173,7 @@ class PymongoStorage(SlateStorage):
 
     def clear(self):
         self._write()
-        self._section.update({ '_id': self._id }, { '$set': { 'data': {} } })
+        self._section.update({ '_id': self.id }, { '$set': { 'data': {} } })
         self.cache = {}
 
     def items(self):
@@ -193,7 +184,7 @@ class PymongoStorage(SlateStorage):
 
     def expire(self):
         self._access()
-        self._section.remove(self._id)
+        self._section.remove(self.id)
         self._expired()
 
     def is_expired(self):
@@ -222,8 +213,8 @@ class PymongoStorage(SlateStorage):
     def find_with(cls, section, key, value):
         results = []
         _section = cls._get_section(section)
-        for result in _section.find({ 'data.' + key: value }, { 'name': 1 }):
-            results.append(Slate(section, result['name']))
+        for result in _section.find({ 'data.' + key: value }, { '_id': 1 }):
+            results.append(Slate(section, result['_id']))
         return results
 
     @classmethod
@@ -231,13 +222,13 @@ class PymongoStorage(SlateStorage):
         result = []
         _section = cls._get_section(section)
         cursor = _section.find(
-            { 'name': { '$gte': start, '$lt': end } }, { 'name': 1 }
+            { '_id': { '$gte': start, '$lt': end } }, { '_id': 1 }
             ).sort(
-            [ ('name',1) ]
+            [ ('_id',1) ]
             )
         skip = skip or 0
         limit = skip + limit if limit else None
-        return [ Slate(section, d['name']) for d in cursor[skip:limit] ]
+        return [ Slate(section, d['_id']) for d in cursor[skip:limit] ]
 
     @classmethod
     def generateId(cls):
@@ -266,7 +257,6 @@ class PymongoStorage(SlateStorage):
             return result
 
         result = cls.db[cls.collection_base + section]
-        result.ensure_index([ ('name', 1) ], unique=True, background=True)
         result.ensure_index([ ('expire', 1) ], background=True)
 
         options = cls._get_section_config(section)
