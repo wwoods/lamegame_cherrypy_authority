@@ -145,7 +145,7 @@ class AdminRoot(object):
         return self.make_page("""
 <h1>User '{user}'</h1>
 {body}
-""".format(user=user, body=''.join(body))
+""".format(user=userName, body=''.join(body))
             )
 
     @cherrypy.expose
