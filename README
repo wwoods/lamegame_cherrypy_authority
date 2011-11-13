@@ -10,3 +10,14 @@ Optional:
     python-openid - For Open ID support
 
 
+OpenID
+======
+
+Being an openID server
+======================
+If python-openid is installed, then there is an OpenID endpoint set up automatically at (authroot)/openid.  If you would like your site root to be an open ID endpoint, put the following meta tag in the index page (e.g. http://www.lamegameproductions.com):
+
+<meta http-equiv="x-xrds-location" content="https://www.lamegameproductions.com/auth/openid/xrds" />
+
+Replace www.lamegameproductions.com/auth with your auth root.  It is probably wise to ensure that the xrds location is accessed through https.
+
