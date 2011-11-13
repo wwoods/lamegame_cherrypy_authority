@@ -1,5 +1,12 @@
 lg_authority - A general purpose, multi-backend capable authentication and permissions framework for CherryPy.
 =================================================
 
+Dependencies
+============
+Required:
+    cherrypy
+
+Optional:
+    python-openid - For Open ID support
 
 

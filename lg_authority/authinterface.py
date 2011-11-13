@@ -214,11 +214,11 @@ class AuthInterface(object):
             return None
         return userSlate.get('auth_password', None)
 
-    def set_user_password(self, username, new_pass):
+    def set_user_password(self, userid, new_pass):
         """Updates the given user's password.  new_pass is a tuple
         (algorithm, hashed) that is the user's new password.
         """
-        user = self.get_user_from_name(username)
+        user = self.get_user_from_id(userid)
         if user.is_expired():
             raise ValueError('User not found')
         user['auth_password'] = { 'date': datetime.datetime.utcnow(), 'pass': new_pass }
