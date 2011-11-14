@@ -38,14 +38,6 @@ config.update({
     'site_auth_root': '/auth/'
     #The absolute path to the site's auth root, with ending slash.
     ,
-    'site_key': 'abc123o2qh3otin;oiH#*@(TY(#*Th:T*:(@#HTntb982#HN(:@#*TBH:@#(*THioihI#HOIH%oihio3@H%IOH#@%I)(!*@Y%+(+!@H%~`un23gkh'
-    #Site encryption key for passwords.  Should be more than 60 chars.
-    ,
-    'site_password_renewal': 365
-    #Days until users receive warnings that their passwords are old when they
-    #log in.  Use None for no warning.  Only users with passwords (not openid
-    #users) will be prompted.
-    ,
     'site_admin_login_window': 120
     #Seconds after reauthentication that the administrative window closes.
     #Used for things like changing the user's password or adding a new 
@@ -105,6 +97,14 @@ config.update({
     #Group records to create if they do not already exist.  
     #any, auth, and user- groups are automatic.
     ,
+    'site_key': 'abc123o2qh3otin;oiH#*@(TY(#*Th:T*:(@#HTntb982#HN(:@#*TBH:@#(*THioihI#HOIH%oihio3@H%IOH#@%I)(!*@Y%+(+!@H%~`un23gkh'
+    #Site encryption key for passwords.  Should be more than 60 chars.
+    ,
+    'site_password_renewal': 365
+    #Days until users receive warnings that their passwords are old when they
+    #log in.  Use None for no warning.  Only users with passwords (not openid
+    #users) will be prompted.
+    ,
     'site_registration': None
     #The required USER-SIDE registration mechanism.  All registration mechanisms use
     #recaptcha if it is installed.
@@ -115,6 +115,13 @@ config.update({
     #    See site_email_ settings.
     #admin - A user will define their account (optionally with recaptcha), but 
     #    an admin must sign off on it.
+    #external - No special registration - use an external (currently only 
+    #   openID) source for logins.  Trust that username for logins.
+    #   Options:
+    #       open_id: OpenID endpoint URL to use
+    #       email: { e-mail registration settings } - If set (not None), require
+    #           an e-mail address to register.  If the openID endpoint does
+    #           not provide an e-mail, the user will be prompted.
     #None - Users will be redirected to the login page if their openID
     #    fails, and the New Account link will be replaced with text asking
     #    users who feel they should have permission to contact the 

@@ -81,7 +81,7 @@ class PymongoStorage(SlateStorage):
         if self.expired:
             if not useTimeout:
                 #We don't have a valid timeout, and we're new...
-                raise ArgumentError("Must specify a timeout for new slates")
+                raise ValueError("Must specify a timeout for new slates")
 
             if self.id is None:
                 self.id = PymongoStorage.generateId()

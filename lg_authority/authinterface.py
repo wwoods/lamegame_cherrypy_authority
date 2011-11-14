@@ -101,7 +101,7 @@ class AuthInterface(object):
         if config['site_registration_timeout'] != None:
             kwargs['timeout'] = config['site_registration_timeout'] * 60 * 24
             
-        pname = Slate('username', username, **kwargs)
+        pname = Slate('username', userName, **kwargs)
         if not pname.is_expired():
             raise AuthError('Username already taken')
             
@@ -140,19 +140,22 @@ class AuthInterface(object):
         """
         if not holder.get('holder', False):
             raise AuthError('User already activated')
-        del holder['holder']
 
         uargs = {}
         for k,v in holder.items():
             uargs[k] = v
 
-        user = Slate('user', None)
+        # Inform the user of its name
+        uargs['name'] = holder.id
+
+        user = Slate('user', None, timeout=None)
         if not user.is_expired():
             raise AuthError('User creation error')
 
         user.update(uargs)
         uid = user.id
         holder['userId'] = uid
+        del holder['holder']
 
         return uid
 

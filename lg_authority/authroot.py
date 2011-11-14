@@ -104,6 +104,12 @@ class AuthRoot(object):
         if cherrypy.user and 'admin' not in kwargs:
             self.login_redirect(kwargs.get('redirect'))
 
+        if config['site_registration'] == 'external':
+            #Forward login page to appropriate handler
+            url = config.registrar.get_login_url()
+            url += "&redirect={0}".format(kwargs.get('redirect'))
+            raise cherrypy.HTTPRedirect(url)
+
         kwargs.setdefault('error', '')
         kwargs.setdefault('redirect', '')
         if config['site_registration'] is None:

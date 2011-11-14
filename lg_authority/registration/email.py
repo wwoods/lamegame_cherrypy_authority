@@ -5,9 +5,9 @@ from .common import *
 from ..common import *
 from .. import smail
 
-class EmailRegistrar(object):
+class EmailRegistrar(Registrar):
     def __init__(self, conf):
-        self.conf = conf
+        Registrar.__init__(self, conf)
 
     def new_account_ok(self, uname, redirect):
         return "<p>You will be receiving an email shortly (be sure to check your SPAM folder as well).  Click the link contained in it to activate your account and continue to your original destination.</p>"

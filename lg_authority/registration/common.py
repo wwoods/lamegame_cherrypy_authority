@@ -2,6 +2,7 @@
 class Registrar(object):
     def __init__(self, conf):
         """Initializes a new registrar with the given params."""
+        self.conf = conf
 
     def new_account_ok(self, uname, redirect):
         """Get a message detailing the user's next step"""

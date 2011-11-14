@@ -53,4 +53,18 @@ class TestAuthInterface(unittest.TestCase):
         except AuthError:
             pass
 
+    def test_user_holder(self):
+        uname = 'testUser_holder'
+        self.ai.user_create_holder(uname, { 'testValue': 'value' })
+        holder = self.ai.get_user_holder(uname)
+        self.assertNotEqual(None, holder)
+        uid = self.ai.user_promote_holder(holder)
+        user = self.ai.get_user_from_id(uid)
+
+        self.assertNotEqual(None, user)
+        self.assertEqual(uname, user.get('name'))
+        self.assertEqual('value', user.get('testValue'))
+
+        self.assertEqual(uid, holder.get('userId'))
+
 
