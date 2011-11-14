@@ -83,7 +83,7 @@ class AuthRoot(object):
             #TODO - this is horribly wrong.  we shouldn't be logging in the user
             #just to get their information and forward it.
             userid = config.auth.test_password(username, password)
-            if username is not None:
+            if userid is not None:
                 user = config.auth.login(userid)
             
         if cherrypy.user:
