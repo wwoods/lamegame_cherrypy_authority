@@ -180,12 +180,6 @@ class AuthTool(cherrypy.Tool):
         user = cherrypy.session.get('auth', None)
         config.auth.serve_user_from_dict(user)
 
-        if cherrypy.user:
-            #Move the session over to the user session
-            cherrypy.serving.session = Slate('user_session', cherrypy.user.id
-                ,timeout=None
-                )
-
         #Now validate static permissions, if any
         access_groups = kwargs['groups']
         if access_groups is not None:

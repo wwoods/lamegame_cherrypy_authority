@@ -32,14 +32,16 @@ class TestUserSlate(LgWebCase):
             @cherrypy.expose
             @lg_authority.groups('any')
             def sessionSet(self, **kwargs):
-                print('Updating with ' + repr(kwargs))
+                cherrypy.log('Updating with ' + repr(kwargs))
                 cherrypy.session.update(kwargs)
+                cherrypy.log('session: ' + repr(cherrypy.serving.session.items()))
                 return "ok"
 
             @lg_authority.groups('any')
             class SessionGet(object):
                 @cherrypy.expose
                 def default(self, var):
+                    cherrypy.log('session: ' + repr(cherrypy.serving.session.items()))
                     return cherrypy.session.get(var, '(unset)')
             sessionGet = SessionGet()
 

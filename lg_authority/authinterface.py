@@ -29,6 +29,7 @@ class UserObject:
         self.id = session_dict['__id__']
         self.name = session_dict['__name__']
         self.groups = session_dict['groups']
+        self.session = Slate('user_session', self.id)
 
     def isOldPassword(self):
         """Returns True if our password is old and should be changed."""
@@ -319,16 +320,20 @@ class AuthInterface(object):
         cherrypy.serving.sessionActual.regen_id()
 
         #Port over session variables
-        user_session = Slate('user_session', userId, timeout=None)
-        for k,v in cherrypy.serving.sessionActual.items():
-            if k == 'auth':
-                # Never port over auth data
-                continue
-            if k in user_session:
-                raise Exception("Session migration was not smooth: " + k)
-            user_session[k] = v
-            del cherrypy.serving.sessionActual[k]
-        cherrypy.serving.session = user_session
+        # We no longer do this since it can cause weird errors, and it makes
+        # sense that the application needs to know which data is attached
+        # to a browser session and which to a user.  moved to 
+        # cherrypy.user.session
+        #user_session = Slate('user_session', userId, timeout=None)
+        #for k,v in cherrypy.serving.sessionActual.items():
+        #    if k == 'auth':
+        #        # Never port over auth data
+        #        continue
+        #    if k in user_session:
+        #        raise Exception("Session migration was not smooth: " + k)
+        #    user_session[k] = v
+        #    del cherrypy.serving.sessionActual[k]
+        #cherrypy.serving.session = user_session
 
         #Set our auth entry...
         cherrypy.serving.sessionActual['auth'] = d
