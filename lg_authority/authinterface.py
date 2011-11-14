@@ -207,7 +207,7 @@ class AuthInterface(object):
             result = result[0]
             if result.get('inactive', False):
                 raise AuthError('This e-mail is in use by an inactive user')
-            return result.id
+            return result
         elif len(result) > 1:
             raise AuthError("More than one user has this e-mail!")
         else:
