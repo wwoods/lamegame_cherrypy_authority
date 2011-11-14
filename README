@@ -21,3 +21,5 @@ If python-openid is installed, then there is an OpenID endpoint set up automatic
 
 Replace www.lamegameproductions.com/auth with your auth root.  It is probably wise to ensure that the xrds location is accessed through https.
 
+Users may also use the /auth/openid URL as an endpoint, even if you don't put that meta tag on your root.
+
