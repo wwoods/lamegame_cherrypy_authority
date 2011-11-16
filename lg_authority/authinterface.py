@@ -6,6 +6,23 @@ from .common import *
 from . import passwords
 from .slates import Slate
 
+class UserHolder:
+    """Though holders are saved internally as username slates with a special
+    property, we extract that property into this object for presentation and
+    encapsulation.
+    """
+
+    def __init__(self, slate):
+        if slate is None or slate.is_expired() or slate.get('holder') is None:
+            raise ValueError("slate must be valid holder")
+        self._slate = slate
+        self.data = slate['holder']
+
+    def promote(self):
+        """Turn the holder into a real user.  Returns the new user ID
+        """
+        return config.auth._promote_holder(self)
+
 class UserObject:
     """An object representing the current logged in user.
     Served as cherrypy.user.
@@ -130,34 +147,6 @@ class AuthInterface(object):
             return True
         return False
 
-    def user_promote_holder(self, holder):
-        """Promotes the passed holder slate to a full user.  Assumes that
-        holder is a valid slate.
-
-        Returns the created user ID.
-        """
-        if not holder.get('holder', False):
-            raise AuthError('User already activated')
-
-        uargs = {}
-        for k,v in holder['holder'].items():
-            uargs[k] = v
-
-        # Inform the user of its name
-        uargs['name'] = holder.id
-
-        user = Slate('user', None, timeout=None)
-        if not user.is_expired():
-            raise AuthError('User creation error')
-
-        holder.set_timeout(None)
-        user.update(uargs)
-        uid = user.id
-        holder['userId'] = uid
-        del holder['holder']
-
-        return uid
-
     def user_activate(self, userId):
         user = self.get_user_from_id(userId)
         if user.is_expired() or not user.get('inactive', False):
@@ -232,7 +221,7 @@ class AuthInterface(object):
         result = Slate('username', username)
         if result.is_expired() or not result.get('holder', False):
             return None
-        return result
+        return UserHolder(result)
 
     def get_user_password(self, userSlate):
         """Returns a dict consisting of a "date" element that is the UTC time
@@ -407,6 +396,35 @@ class AuthInterface(object):
             user = self.get_user_from_id(groupid[5:])
             return 'User - ' + user.get('name', '(error)')
         return self._get_group_name(groupid)
+
+    def _promote_holder(self, holder):
+        """Promotes the passed holder slate to a full user.  Assumes that
+        holder is a valid slate.
+
+        Returns the created user ID.
+        """
+        nameSlate = holder._slate
+        if not nameSlate.get('holder', False):
+            raise AuthError('User already activated')
+
+        uargs = {}
+        for k,v in holder.data.items():
+            uargs[k] = v
+
+        # Inform the user of its name
+        uargs['name'] = nameSlate.id
+
+        user = Slate('user', None, timeout=None)
+        if not user.is_expired():
+            raise AuthError('User creation error')
+
+        nameSlate.set_timeout(None)
+        user.update(uargs)
+        uid = user.id
+        nameSlate['userId'] = uid
+        del nameSlate['holder']
+
+        return uid
 
     def _validateUsername(self, username):
         """Verify that the given username is a valid user name, and return
