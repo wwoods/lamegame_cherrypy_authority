@@ -59,9 +59,9 @@ class EmailRegistrar(Registrar):
 
     def response_link(self, username=None, key=None, redirect=None):
         holder = config.auth.get_user_holder(username)
-        if holder and key == holder.get('email_code'):
-            del holder['email_code']
-            userId = config.auth.user_promote_holder(holder)
+        if holder and key == holder.data.get('email_code'):
+            del holder.data['email_code']
+            userId = holder.promote()
             config.auth.login(userId)
             response = "<p>Account activated.  You are now logged in.</p>"
             if redirect:
