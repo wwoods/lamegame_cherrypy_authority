@@ -52,14 +52,16 @@ class Slate(object): #PY3 , metaclass=cherrypy._AttributeDocstrings):
         Else, write new expiration and specified data
     """
     
-    timeout = None
-    timeout__doc = "Number of seconds after which to delete slate data, or None for no expiration.  The default is no expiration."
-
     storage = None
     storage__doc = "Storage instance for this slate"
     
     def __init__(self, section, id, timeout={}):
         """Initializes the Slate, but does no work.
+
+        Timeout -- int - Number of seconds after which to delete this slate's
+            data (reset on each write), or None for no expiration.  Pass a
+            dict (default param) to keep whatever the slate's current timeout
+            is.
         """
         self.storage = config.storage_class(section, id, timeout)
 
@@ -178,6 +180,13 @@ class Slate(object): #PY3 , metaclass=cherrypy._AttributeDocstrings):
     def todict(self):
         """Slate -> dict"""
         return dict(self.storage.items())
+
+    def set_timeout(self, timeout):
+        """Change the timeout of this slate to the given timeout; the "touch"
+        to effect the new timeout is not implicit.  Call touch() or do some
+        write operation manually to overwrite the timeout.
+        """
+        self.storage.timeout = timeout
 
     def _get_section(self):
         return self.storage.section

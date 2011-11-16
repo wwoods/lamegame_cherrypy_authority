@@ -39,6 +39,11 @@ try:
 except ImportError:
     from urllib.parse import urlencode
 
+#Utility function to get the domain for a URL
+_get_domain_url = re.compile('^[a-z]+://([^/:]+)')
+def get_domain(url):
+    return _get_domain_url.search(url).group(1)
+
 from .common_templates import *
 
 def url_add_parms(base, qs):

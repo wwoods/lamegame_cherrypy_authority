@@ -71,11 +71,6 @@ else:
 
         @cherrypy.expose
         def index(self):
-            templ = get_template('openid_server_index.html')
-            return templ.format(xrds=cherrypy.url('xrds'))
-
-        @cherrypy.expose
-        def xrds(self):
             cherrypy.response.headers['Content-Type'] = YADIS_CONTENT_TYPE
             templ = get_template('openid_xrds.xml')
             return templ.format(type=OPENID_IDP_2_0_TYPE, endpoint=self.get_endpoint())
@@ -143,21 +138,9 @@ else:
                         )
                     return self.displayResponse(error)
 
-            if openid_request.immediate:
-                #TODO - This is where we would do something for users that 
-                #are already logged in
-                openid_response = openid_request.answer(False)
-                return self.displayResponse(openid_response)
-            else:
-                self.set_request(openid_request)
-                return self.showDecidePage(openid_request)
-
-        def showDecidePage(self, openid_request):
-            """Let the user decide if they want to trust the consumer."""
-            trust_root = openid_request.trust_root
-            return_to = openid_request.return_to
-
             try:
+                trust_root = openid_request.trust_root
+                return_to = openid_request.return_to
                 trust_root_valid = verifyReturnTo(trust_root, return_to)
             except DiscoveryFailure as err:
                 trust_root_valid = "DISCOVERY_FAILED"
@@ -167,13 +150,35 @@ else:
             if trust_root_valid != True:
                 return '<div class="lg_auth_form">The trust root / return is not valid.  Denying authentication.  Reason: {0}</div>'.format(trust_root_valid)
 
+            if openid_request.immediate:
+                #TODO - This is where we would do something for users that 
+                #are already logged in
+                openid_response = openid_request.answer(False)
+                return self.displayResponse(openid_response)
+            elif get_domain(trust_root).endswith(
+                    get_domain(cherrypy.url().replace('/www.', '/'))
+                ):
+                # e.g. if we get a request from test.lamegameproductions.com to
+                # www.lamegameproductions.com, implicitly trust this.
+                raise cherrypy.HTTPRedirect(url_add_parms(
+                    './trust_result'
+                    , { 'allow': True }
+                    ))
+            else:
+                self.set_request(openid_request)
+                return self.showDecidePage(openid_request, trust_root)
+
+        def showDecidePage(self, openid_request, trust_root):
+            """Let the user decide if they want to trust the consumer.
+            Only called if trust root is valid
+            """
             pape_request = pape.Request.fromOpenIDRequest(openid_request)
 
             templ = get_template('openid_server_trust.html')
             return templ.format(
                 trust_root=trust_root
                 ,trust_handler=cherrypy.url('trust_result')
-                ,trust_root_valid=trust_root_valid
+                ,trust_root_valid=True
                 ,pape_request=pape_request
                 )
 
@@ -191,8 +196,15 @@ else:
                 )
 
             if allowed:
-                sreg_data = {} #TODO - link sreg data to user data (except
-                               #be sure to remove auth_ stuff)
+                # Publish our user information through sreg
+                sreg_data = {}
+
+                emails = cherrypy.user.dict.get('email')
+                if emails:
+                    emails = emails[0]
+                sreg_data['email'] = emails
+                sreg_data['nickname'] = cherrypy.user.name
+                cherrypy.log("SREG_DATA: " + repr(sreg_data))
 
                 sreg_req = sreg.SRegRequest.fromOpenIDRequest(openid_request)
                 sreg_resp = sreg.SRegResponse.extractResponse(sreg_req, sreg_data)

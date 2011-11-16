@@ -8,9 +8,12 @@ class Registrar(object):
         """Get a message detailing the user's next step"""
         raise NotImplementedError()
 
-    def new_user_fields(self):
+    def new_user_fields(self, **kwargs):
         """Returns fields (in a table row of name: input format) required
         for registration.
+
+        kwargs -- Dict of known attributes from e.g. the last try at creating
+            a new account or an OpenID authentication.
         """
 
     def process_new_user(self, uname, uargs, authargs, redirect):

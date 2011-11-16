@@ -51,13 +51,14 @@ class AuthRoot(object):
     @groups('auth')
     def index(self):
         p = LgPageControl()
-        p.append('<p>You are logged in as ', TextControl(cherrypy.user.id), '</p>')
+        p.append('<p>You are logged in as ', TextControl(cherrypy.user.name), '</p>')
         g = GenericControl(
             '<p>You are a member of the following groups: {children}</p>'
             , child_wrapper = [ '', ', ', '' ]
             ).appendto(p)
         g.extend([ TextControl(g[1]) for g in get_user_groups_named().items() ])
-        p.append('<p><a href="change_password">Change Password</a></p>')
+        if config['site_registration'] != 'external':
+            p.append('<p><a href="change_password">Change Password</a></p>')
         if 'admin' in cherrypy.user.groups:
             p.append('<p><a href="admin/">Admin Interface</a></p>')
         return p.gethtml()
@@ -214,7 +215,16 @@ original destination</a></p>""".format(redirect)
             return """<div class="lg_auth_form">Registration is not available for this site.</div>"""
 
         redirect = kwargs.get('redirect', '')
-    
+
+        # Remove blank kwargs - this makes required attributes auto fail if
+        # blank.
+        oldKwargs = kwargs
+        kwargs = {}
+        for k,v in oldKwargs.items():
+            if v:
+                kwargs[k] = v
+
+        tryAdd = False
         if cherrypy.request.method.upper() == 'POST':
             try:
                 #check captcha
@@ -231,8 +241,21 @@ original destination</a></p>""".format(redirect)
                         )
                     log('Recaptcha verification: ' + str(result.is_valid))
                     if not result.is_valid:
+                        if result.error_code == 'incorrect-captcha-sol':
+                            raise AuthError("Invalid recaptcha")
                         raise AuthError(result.error_code)
 
+            except KeyError, e:
+                kwargs['error'] = "Invalid recaptcha"
+            except AuthError, e:
+                kwargs['error'] = str(e)
+            else:
+                tryAdd = True
+        elif config['site_registration'] == 'external':
+            tryAdd = True
+    
+        if tryAdd:
+            try:
                 uname = kwargs['username'].lower()
                 uargs = { 'groups': [] }
                 ok = True
@@ -248,6 +271,7 @@ original destination</a></p>""".format(redirect)
                 if ok and 'password' in kwargs:
                     if kwargs['password'] != kwargs['password2']:
                         kwargs['error'] = 'Passwords did not match'
+                        del kwargs['password2']
                         ok = False
                     error = passwords.check_complexity(kwargs['password'])
                     if error is not None:
@@ -273,6 +297,9 @@ original destination</a></p>""".format(redirect)
                                 }
                             )
                         )
+            except KeyError, e:
+                # A required field was not found.
+                kwargs['error'] = "Required attribute: " + str(e)
             except AuthError as e:
                 kwargs['error'] = e
 
@@ -281,17 +308,18 @@ original destination</a></p>""".format(redirect)
             ,'password_form': ''
             ,'error': kwargs.get('error', '')
             ,'username': kwargs.get('username', '')
+            ,'email': kwargs.get('email', '')
             ,'redirect': redirect
             }
         if kwargs.get('openid') != 'stored':
             template_args['password_form'] = """
-<tr><td>Password</td><td><input type="password" name="password" /></td></tr>
-<tr><td>Password (again)</td><td><input type="password" name="password2" /></td></tr>
-"""
+<tr><td>Password</td><td><input type="password" name="password" value="{password}" /></td></tr>
+<tr><td>Password (again)</td><td><input type="password" name="password2" value="{password2}" /></td></tr>
+""".format(password=kwargs.get('password'), password2=kwargs.get('password2'))
 
         #Go through registration providers, and ask for fields
         reg_forms = []
-        reg_forms.append(config.registrar.new_user_fields() or '')
+        reg_forms.append(config.registrar.new_user_fields(**kwargs) or '')
         template_args['registration_forms'] = ''.join(reg_forms)
         
         #Captcha form
@@ -339,10 +367,9 @@ original destination</a></p>""".format(redirect)
         error = ''
 
         try:
-            username = config.auth.get_user_from_email(email)
-            if username is None:
+            user = config.auth.get_user_from_email(email)
+            if user is None:
                 raise AuthError('Account matching e-mail not found.')
-            user = config.auth.user_get_record(username)
             from uuid import uuid4
             code = uuid4().hex
             user['email_forgot_code'] = [ datetime.datetime.utcnow(), code ]
@@ -352,7 +379,7 @@ original destination</a></p>""".format(redirect)
                 email
                 , 'Forgot Password'
                 , "You've indicated you forgot your password.  If that is true, click the following link to reset it.  Otherwise, you may disregard this e-mail.\r\n\r\n{link}".format(
-                    link=url_add_parms(cherrypy.url('forgot_password_response'), { 'redirect': redirect, 'code': code, 'user': username })
+                    link=url_add_parms(cherrypy.url('forgot_password_response'), { 'redirect': redirect, 'code': code, 'userId': user.id })
                     )
                 )
         except AuthError as e:
@@ -365,10 +392,10 @@ original destination</a></p>""".format(redirect)
         raise cherrypy.HTTPRedirect(url_add_parms('login', { 'redirect': redirect, 'error': error }))
 
     @cherrypy.expose
-    def forgot_password_response(self, user, code, redirect):
+    def forgot_password_response(self, userId, code, redirect):
         error = 'Unknown error'
         try:
-            u = config.auth.user_get_record(user)
+            u = config.auth.get_user_from_id(userId)
             ucode = u.get('email_forgot_code')
             if ucode is None:
                 raise AuthError('Unknown request')
@@ -380,7 +407,7 @@ original destination</a></p>""".format(redirect)
             del u['email_forgot_code']
 
             #OK!
-            config.auth.login(user, admin=True)
+            config.auth.login(userId, admin=True)
             raise cherrypy.HTTPRedirect(url_add_parms('change_password', { 'redirect': redirect, 'error': 'Please enter a new password' }))
 
         except AuthError as e:
@@ -409,7 +436,10 @@ original destination</a></p>""".format(redirect)
                     )
                 )
 
-        if cherrypy.request.method.upper() == 'POST':
+        if config['site_registration'] == 'external':
+            # No passwords for external auth - we depend on external!
+            error = "No passwords for external auth"
+        elif cherrypy.request.method.upper() == 'POST':
             try:
                 if kwargs['newpass'] != kwargs['newpass2']:
                     raise AuthError('New passwords do not match')
@@ -494,7 +524,9 @@ original destination</a></p>""".format(redirect)
                 )
             )
 
-    def login_openid_response(self, url, redirect=None, **kwargs):
+    def login_openid_response(self, url, user_params={}, redirect=None
+            , **kwargs
+        ):
         """Handles an openid login.  
         This is called directly by a descendent of the AuthRoot path.
         """
@@ -511,6 +543,7 @@ original destination</a></p>""".format(redirect)
         #No known user has that openID... ask if they want to register,
         #if applicable.
         if config['site_registration'] is None:
+            # TODO - update user data with user_params
             raise cherrypy.HTTPRedirect(
                 url_add_parms('../login', { 'error': 'Unknown OpenID: ' + url, 'redirect': redirect or '' })
                 )
@@ -519,7 +552,15 @@ original destination</a></p>""".format(redirect)
             #registering a bunch of usernames with OpenID urls that do
             #not belong to them.
             cherrypy.session['openid_url'] = url
+            new_account_args = {}
+            if user_params.get('email'):
+                new_account_args['email'] = user_params.get('email')
+            if user_params.get('nickname'):
+                new_account_args['username'] = user_params.get('nickname')
+            new_account_args['error'] = 'Unknown OpenID.  If you would like to register an account with this OpenID, fill out the following form:'
+            new_account_args['openid'] = 'stored'
+            new_account_args['redirect'] = redirect or ''
             raise cherrypy.HTTPRedirect(
-                url_add_parms('../new_account', { 'error': 'Unknown OpenID.  If you would like to register an account with this OpenID, fill out the following form:', 'openid': 'stored', 'redirect': redirect or '' })
+                url_add_parms('../new_account', new_account_args)
                 )
 

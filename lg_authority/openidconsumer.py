@@ -36,6 +36,12 @@ else:
         ,pape.AUTH_MULTI_FACTOR_PHYSICAL
         ]
 
+    #Map AX urls to sreg attributes
+    AX_MAPPING = {
+        'http://axschema.org/contact/email': 'email'
+        ,'http://schema.openid.net/namePerson': 'nickname'
+        }
+
     class OpenIdConsumerRoot(object):
         """A cherrypy object that logs into open id.  Is presumed to be
         mounted at {AuthRoot}/login_openid
@@ -95,14 +101,13 @@ else:
             #These two are so widely unsupported and uncompliant,
             #that they're hardly worth supporting.
             #Here's where we ask for things like email
-            sreg_request = sreg.SRegRequest()#required=['email','dob'])
+            sreg_request = sreg.SRegRequest(required=['email','nickname'])
             auth_request.addExtension(sreg_request)
 
             #Look at attribute exchange (ax) more
             ax_request = ax.FetchRequest()
-            ax_request.add(
-                ax.AttrInfo('http://axschema.org/contact/email')
-                )
+            for key in AX_MAPPING.keys():
+                ax_request.add(ax.AttrInfo(key, required=True))
             auth_request.addExtension(ax_request)
 
             #PAPE policies
@@ -143,7 +148,6 @@ else:
             response = c.complete(kwargs, return_to)
 
             #Check the sreg response
-            sreg_response = {}
             if response.status == consumer.SUCCESS:
                 sreg_response = sreg.SRegResponse.fromSuccessResponse(response)
                 ax_response = ax.FetchResponse.fromSuccessResponse(response)
@@ -151,16 +155,31 @@ else:
                 if not pape_response.auth_policies:
                     pape_response = None
 
+                # Set up any user data we got in the request (we prioritize
+                # sreg)
+                user_params = {}
+                if ax_response:
+                    for key,value in AX_MAPPING.items():
+                        user_params[value] = ax_response.getSingle(key, None)
+                if sreg_response:
+                    for k,v in sreg_response.items():
+                        user_params[k] = v
+
+                if not user_params.get('nickname') and user_params.get('email'):
+                    user_params['nickname'] = user_params.get('email') \
+                        .split('@')[0]
+
                 extra_args = {}
                 if 'admin' in kwargs:
                     extra_args['admin'] = True
                 return self.auth_root.login_openid_response(
                     response.getDisplayIdentifier()
                     ,redirect=redirect
+                    ,user_params=user_params
                     ,**extra_args
                     )
-                return """<p>OpenID: OK</p><p>url: {0}</p><p>sreg: {1}</p><p>ax: {2}</p><p>pape: {3}</p>""".format(
-                    response.getDisplayIdentifier(), sreg_response, ax_response, pape_response
+                return """<p>OpenID: OK</p><p>url: {0}</p><p>sreg: {1}</p><p>ax: {2}</p><p>pape: {3}</p><p>user_params: {4}</p>""".format(
+                    response.getDisplayIdentifier(), repr(sreg_response), repr(ax_response), repr(pape_response), repr(user_params)
                     )
 
             elif response.status == consumer.CANCEL:

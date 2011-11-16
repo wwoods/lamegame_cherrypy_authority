@@ -157,12 +157,14 @@ class AuthTool(cherrypy.Tool):
                 config.auth.group_create(name, data)
             except AuthError:
                 pass
-        for name,data in config['site_user_list'].items():
-            try:
-                config.auth.user_create(name, data)
-            except AuthError:
-                pass
-                
+
+        if config['site_registration'] != 'external':
+            for name,data in config['site_user_list'].items():
+                try:
+                    config.auth.user_create(name, data)
+                except AuthError:
+                    pass
+
         #Set up registration mechanism
         reg_method = config['site_registration']
         if reg_method is not None:

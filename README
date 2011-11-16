@@ -7,7 +7,31 @@ Required:
     cherrypy
 
 Optional:
+    pymongo - For MongoDB backend
     python-openid - For Open ID support
+
+
+Storage Options
+===============
+
+The different storage options are laid out in lg_authority/slates/storage.  Currently, there are the following and their options:
+
+ram - Store session and user data in memory only; it will get erased when the
+    server restarts, and does not support coordination between different 
+    instances.
+    Options: No options.
+
+sqlite3 - Store session in a sqlite3 file database.  Data is persisted through 
+    the file.
+    Options: file - The file to store session and user information in.
+
+pymongo - Store session information in a mongodb backend.
+    Options:
+        host - The host address of the mongodb server to connect to
+        port - The port
+        db - The name of the mongodb database to store auth collections in
+        collection_base - An optional prefix for all of the collections created
+            and maintained by lg_authority.
 
 
 OpenID

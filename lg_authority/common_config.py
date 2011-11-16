@@ -135,12 +135,6 @@ config.update({
         }
     #Config items for the specific 
     ,
-    'site_registration_timeout': 2
-    #The number of days between which a registration request is placed and 
-    #expires.  For open or None, this is irrelevant.  For email, it refers to
-    #the time window that the user has to receive the activation email and
-    #activate their account.  For admin, this value IS NOT USED.
-    ,
     'site_registration_recaptcha': {
         'public': None
         ,'private': None

@@ -29,6 +29,7 @@ class UserObject:
         self.id = session_dict['__id__']
         self.name = session_dict['__name__']
         self.groups = session_dict['groups']
+        self.dict = Slate('user', self.id)
         self.session = Slate('user_session', self.id)
 
     def isOldPassword(self):
@@ -91,24 +92,20 @@ class AuthInterface(object):
         userNameSlate['userId'] = user.id
         return user.id
        
-    def user_create_holder(self, userName, data):
+    def user_create_holder(self, userName, data, timeout=None):
         """Inserts a placeholder for the given username.  Raises an AuthError
         if the username specified is already an existing user or placeholder
         user.
 
         data is any authentication data to associate with the user.
+        timeout - The timeout interval for this holder, in seconds
         """
-        kwargs = { 'timeout': None }
-        if config['site_registration_timeout'] != None:
-            kwargs['timeout'] = config['site_registration_timeout'] * 60 * 24
-            
-        pname = Slate('username', userName, **kwargs)
+        pname = Slate('username', userName, timeout=timeout)
         if not pname.is_expired():
             raise AuthError('Username already taken')
             
         #Make the holder
-        newData = data.copy()
-        newData['holder'] = True
+        newData = { 'holder': data }
         pname.update(newData)
 
     def user_delete(self, userId):
@@ -143,7 +140,7 @@ class AuthInterface(object):
             raise AuthError('User already activated')
 
         uargs = {}
-        for k,v in holder.items():
+        for k,v in holder['holder'].items():
             uargs[k] = v
 
         # Inform the user of its name
@@ -153,6 +150,7 @@ class AuthInterface(object):
         if not user.is_expired():
             raise AuthError('User creation error')
 
+        holder.set_timeout(None)
         user.update(uargs)
         uid = user.id
         holder['userId'] = uid
@@ -229,7 +227,7 @@ class AuthInterface(object):
 
     def get_user_holder(self, username):
         """Returns the given username record, only if that record has the
-        "holder" property set to True.  Otherwise returns None.
+        'holder' property set to True.  Otherwise returns None.
         """
         result = Slate('username', username)
         if result.is_expired() or not result.get('holder', False):

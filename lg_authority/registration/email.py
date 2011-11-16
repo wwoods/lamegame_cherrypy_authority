@@ -12,8 +12,11 @@ class EmailRegistrar(Registrar):
     def new_account_ok(self, uname, redirect):
         return "<p>You will be receiving an email shortly (be sure to check your SPAM folder as well).  Click the link contained in it to activate your account and continue to your original destination.</p>"
 
-    def new_user_fields(self):
-        return """<tr><td>Email</td><td><input type="text" style="width:20em;" name="email" /></td></tr>"""
+    def new_user_fields(self, **kwargs):
+        return """<tr><td>Email</td><td>
+            <input type="text" style="width:20em;" name="email" 
+                value="{email}"/></td></tr>
+            """.format(email=kwargs.get('email') or '')
 
     def process_new_user(self, uname, uargs, authargs, redirect):
         code = uuid4().hex
@@ -52,11 +55,11 @@ class EmailRegistrar(Registrar):
             )
 
         #Email sent OK, put in the holder
-        config.auth.user_create_holder(uname, uargs)
+        config.auth.user_create_holder(uname, uargs, timeout=60*60*24*2)
 
     def response_link(self, username=None, key=None, redirect=None):
         holder = config.auth.get_user_holder(username)
-        if key == holder.get('email_code'):
+        if holder and key == holder.get('email_code'):
             del holder['email_code']
             userId = config.auth.user_promote_holder(holder)
             config.auth.login(userId)
