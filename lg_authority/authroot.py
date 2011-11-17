@@ -315,7 +315,10 @@ original destination</a></p>""".format(redirect)
             template_args['password_form'] = """
 <tr><td>Password</td><td><input type="password" name="password" value="{password}" /></td></tr>
 <tr><td>Password (again)</td><td><input type="password" name="password2" value="{password2}" /></td></tr>
-""".format(password=kwargs.get('password'), password2=kwargs.get('password2'))
+""".format(
+                password=kwargs.get('password', '')
+                , password2=kwargs.get('password2', '')
+            )
 
         #Go through registration providers, and ask for fields
         reg_forms = []

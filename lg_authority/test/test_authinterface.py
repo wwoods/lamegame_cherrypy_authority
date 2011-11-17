@@ -58,13 +58,15 @@ class TestAuthInterface(unittest.TestCase):
         self.ai.user_create_holder(uname, { 'testValue': 'value' })
         holder = self.ai.get_user_holder(uname)
         self.assertNotEqual(None, holder)
-        uid = self.ai.user_promote_holder(holder)
+        uid = holder.promote()
         user = self.ai.get_user_from_id(uid)
+        username = Slate('username', uname)
 
         self.assertNotEqual(None, user)
         self.assertEqual(uname, user.get('name'))
         self.assertEqual('value', user.get('testValue'))
 
-        self.assertEqual(uid, holder.get('userId'))
+        self.assertEqual(uid, username.get('userId'))
+        self.assertTrue('holder' not in username, "Did not delete holder data")
 
 

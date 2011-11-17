@@ -5,11 +5,10 @@ from .common import *
 from ..common import *
 from .. import smail
 from .open import OpenRegistrar
-from .email import EmailRegistrar
 
 __all__ = [ 'ExternalRegistrar' ]
 
-class ExternalRegistrarBase(Registrar):
+class ExternalRegistrar(OpenRegistrar):
     def __init__(self, conf):
         Registrar.__init__(self, conf)
         if 'open_id' in self.conf:
@@ -26,10 +25,22 @@ class ExternalRegistrarBase(Registrar):
         """Gets the login url relative to /auth/"""
         return self.url
 
+    def new_user_fields(self, **kwargs):
+        return """<tr><td>Email</td><td>
+            <input type="text" style="width:20em;" name="email"
+                value="{email}"/></td></tr>
+            """.format(email=kwargs.get('email') or '')
+
     def _process_new_user(self, uname, uargs, authargs, redirect):
-        """Ensure our field shows up in uargs"""
+        """Ensure our fields show up in uargs"""
+        email = authargs['email']
+        uargs['emails'] = [ email ]
+
         if not self.required_user_field in uargs:
-            raise AuthError("Required field for registration: " + self.required_user_field)
+            raise AuthError(
+                "Required field for registration: " 
+                + self.required_user_field
+            )
         else:
             userId = uargs[self.required_user_field][0]
             if get_domain(userId) != self.domain:
@@ -37,21 +48,4 @@ class ExternalRegistrarBase(Registrar):
 
         self._process_new_user_old(uname, uargs, authargs, redirect)
 
-
-class ExternalRegistrarNoEmail(ExternalRegistrarBase, OpenRegistrar):
-    def __init__(self, conf):
-        ExternalRegistrarBase.__init__(self, conf)
-
-class ExternalRegistrarEmail(ExternalRegistrarBase, EmailRegistrar):
-    def __init__(self, conf):
-        ExternalRegistrarBase.__init__(self, conf)
-        EmailRegistrar.__init__(self, conf)
-        self.conf['body'] = self.conf['email']['body']
-        self.conf['subject'] = self.conf['email']['subject']
-
-def ExternalRegistrar(conf):
-    if conf.get('email') is not None:
-        return ExternalRegistrarEmail(conf)
-    else:
-        return ExternalRegistrarNoEmail(conf)
 

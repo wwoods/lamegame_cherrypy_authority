@@ -199,7 +199,7 @@ else:
                 # Publish our user information through sreg
                 sreg_data = {}
 
-                emails = cherrypy.user.dict.get('email')
+                emails = cherrypy.user.dict.get('emails')
                 if emails:
                     emails = emails[0]
                 sreg_data['email'] = emails

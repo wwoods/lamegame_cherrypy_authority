@@ -257,6 +257,8 @@ class Sqlite3Storage(SlateStorage):
     @classmethod
     def find_with(cls, section, key, value):
         db = cls._get_db()
+        # To init section
+        sec = cls._get_section(section)
         try:
             cur = db.cursor()
             cur.execute("""SELECT id FROM "{0}_index" WHERE key = ? AND value = ?""".format(section), (key, value))
@@ -268,6 +270,8 @@ class Sqlite3Storage(SlateStorage):
     @classmethod
     def find_between(cls, section, start, end, limit=None, skip=None):
         db = cls._get_db()
+        # To init section
+        sec = cls._get_section(section)
         try:
             cur = db.cursor()
             cur.execute("""SELECT id FROM "{0}" WHERE id >= ? AND id < ?""".format(section), (start, end))

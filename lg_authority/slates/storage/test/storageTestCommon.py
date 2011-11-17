@@ -127,6 +127,17 @@ class StorageTestCommon(object):
         store = self.getStorage(timeout=60)
         self.assertEqual(56, store.get('j', None))
 
+    def test_sectionIndexInit_find_with(self):
+        # Test that calling find_with on a storage class that has never
+        # been initialized works as expected.  Regression bug.
+        r = self.storageClass.find_with('user', 'emails', 'blah@blah.com')
+        self.assertEqual([], r)
+
+    def test_sectionIndexInit_find_between(self):
+        # See test_sectionIndexInit_find_with
+        r = self.storageClass.find_between('user', 'a', 'z')
+        self.assertEqual([], r)
+
     def test_timeoutValues(self):
         # Test that the different timeout meanings catch on
         store = self.getStorage(timeout=60)
