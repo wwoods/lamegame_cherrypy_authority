@@ -25,6 +25,10 @@ class ExternalRegistrar(OpenRegistrar):
         """Gets the login url relative to /auth/"""
         return self.url
 
+    def new_account_ok(self, uname, redirect):
+        # External auth should be transparent; just redirect
+        raise cherrypy.HTTPRedirect(redirect)
+
     def new_user_fields(self, **kwargs):
         return """<tr><td>Email</td><td>
             <input type="text" style="width:20em;" name="email"
