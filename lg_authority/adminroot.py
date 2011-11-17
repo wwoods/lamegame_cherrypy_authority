@@ -106,7 +106,9 @@ class AdminRoot(object):
         if user is not None and user.get('inactive', False):
             inactive = True
 
-        body = []
+        p = LgPageControl()
+        p.append("<h1>User '{0}'</h1>".format(userName))
+        body = p
 
         if user is not None:
             if not holder and not inactive:
@@ -130,9 +132,21 @@ class AdminRoot(object):
                 body.append('<form method="POST" action="edit_user_delete?userId={0}"><input type="submit" value="Delete User (Frees username for later usage)"/></form>'.format(userId))
                 body.append('</p>')
 
+            body.append('<h2>Groups</h2>')
+            groups = Table(columns=4).appendto(body)
+            for g in user['groups']:
+                line = GenericControl('<a href="{0}">{1}</a>'.format(
+                    url_add_parms('./group_edit', id=g)
+                    , g
+                ))
+                groups.add_cell(line)
+
+            body.append('<h2>Data</h2>')
             stats = sorted(user.items())
             body.append('<table><thead><tr><td>Name</td><td>Value</td></tr></thead><tbody>')
             for k,v in stats:
+                if k == 'groups':
+                    continue
                 body.append('<tr><td>{k}</td>'.format(k=k))
 
                 body.append('<td>{v}</td></tr>'.format(v=json.dumps(v,default=admin_to_json)))
@@ -142,11 +156,7 @@ class AdminRoot(object):
             body.append('<h2>User does not exist</h2>')
             body.append('<form method="POST" action="edit_user_create?userName={0}"><input type="submit" value="Create User"/></form>'.format(userName))
 
-        return self.make_page("""
-<h1>User '{user}'</h1>
-{body}
-""".format(user=userName, body=''.join(body))
-            )
+        return p.gethtml()
 
     @cherrypy.expose
     def edit_user_confirm(self, username):
@@ -190,7 +200,93 @@ class AdminRoot(object):
 
     @cherrypy.expose
     def groups(self):
-        return self.make_page("""
-<h1>Groups</h1>
-        """)
+        maxgroups = 100
+        glist = config.Slate.find_between('group', '', 'zzzzzz', maxgroups)
+
+        p = LgPageControl()
+        p.append('<h1>Groups</h1>')
+
+        form = GenericControl('<form method="GET" action="group_edit">{children}</form>').appendto(p)
+        form.append('Find/Create Group: <input type="text" name="id" />')
+        form.append('<input type="submit" value="Add/Edit" />')
+
+        groupList = GenericControl('<ul>{children}</ul>')
+        p.append(groupList)
+        for g in glist:
+            id = g.id
+            name = g.get('name', '(Unnamed: {0})'.format(id))
+            groupList.append(
+                '<li><a href="group_edit?id={id}">{id}</a></li>'.format(
+                    id=id, name=name
+                )
+            )
+
+        return p.gethtml()
+
+    @cherrypy.expose
+    def group_add_user(self, id, userName):
+        user = config.auth.get_user_from_name(userName)
+        if user is not None:
+            gs = user['groups']
+            if id not in gs:
+                gs.append(id)
+                user['groups'] = gs
+        raise cherrypy.HTTPRedirect(url_add_parms('./group_edit', id=id))
+
+    @cherrypy.expose
+    def group_edit(self, id):
+        group = Slate('group', id)
+        p = LgPageControl()
+        p.append("<h1>Group '{id}' - {name}</h1>".format(
+            id=id
+            ,name=group.get('name', '(Unnamed)')
+        ))
+
+        users = Slate.find_with('user', 'groups', id)
+
+        if group.is_expired():
+            p.append("<p>(No slate exists for this group)</p>")
+
+        p.append("<h2>Add user to group</h2>")
+        form = GenericControl(
+            '<form method="POST" action="group_add_user">'
+            + '<input type="hidden" name="id" value="{0}" />'.format(id)
+            + 'Username: <input type="text" name="userName" />'
+            + '<input type="submit" value="Add User" />'
+            + '</form>'
+        ).appendto(p)
+
+        p.append("<h2>Users In Group</h2>")
+        userList = Table(columns=2).appendto(p)
+
+        for u in users:
+            userList.add_cell(
+                '<a href="{url}">{name}</a>'.format(
+                    name=u.get('name', u.id)
+                    , id=u.id
+                    , url = url_add_parms('./edit_user', userId=u.id)
+                )
+            )
+            userList.add_cell(
+                '<form method="POST" action="{0}">'.format(
+                    url_add_parms('./group_remove_user', id=id, userId=u.id)
+                )
+                + '<input type="submit" value="Remove User" />'
+                + '</form>'
+            )
+
+        return p.gethtml()
+
+    @cherrypy.expose
+    def group_remove_user(self, id, userId):
+        """Removes user userId from group id and goes back to the group edit
+        page.
+        """
+        u = config.auth.get_user_from_id(userId)
+        if u is not None:
+            gs = u['groups']
+            if id in gs:
+                gs.remove(id)
+                u['groups'] = gs
+        raise cherrypy.HTTPRedirect(url_add_parms('./group_edit', id=id))
 

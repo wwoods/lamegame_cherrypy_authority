@@ -46,12 +46,13 @@ def get_domain(url):
 
 from .common_templates import *
 
-def url_add_parms(base, qs):
+def url_add_parms(base, qs={}, **kwargs):
     if type(qs) != dict:
         raise TypeError('qs must be dict')
-    if len(qs) == 0:
+    kwargs.update(qs)
+    if len(kwargs) == 0:
         return base
-    qs = urlencode(qs)
+    qs = urlencode(kwargs)
     if '?' in base:
         return base + '&' + qs
     return base + '?' + qs

@@ -455,7 +455,9 @@ original destination</a></p>""".format(redirect)
                     )
                 if redirect:
                     raise cherrypy.HTTPRedirect(redirect)
-                return "Password changed successfully."
+                p = LgPageControl()
+                p.append("Password changed successfully.")
+                return p.gethtml()
             except AuthError as ae:
                 error = str(ae)
 

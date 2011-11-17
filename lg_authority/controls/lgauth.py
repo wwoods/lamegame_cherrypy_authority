@@ -92,7 +92,16 @@ class LgMenuControl(Control):
         self.append(Link(path='/auth/', name='Dashboard'))
         self.append(Link(path='/auth/change_password', name='Change Password'))
         if 'admin' in cherrypy.user.groups:
-            self.append(Link(path='/auth/admin/', name='Admin Interface'))
+            admin = GenericControl(
+                '<div style="'
+                + 'background-color:#eff;display:inline-block;'
+                + 'padding-left:1em;'
+                + '">'
+                + 'Admin: {children}'
+                + '</div>'
+            ).appendto(self)
+            admin.append(Link(path='/auth/admin/', name='Users'))
+            admin.append(Link(path='/auth/admin/groups', name='Groups'))
 
 @Control.Kwarg('error', '', 'The error text to display')
 class LgErrorControl(Control):
