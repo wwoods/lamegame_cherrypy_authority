@@ -22,6 +22,13 @@ def check_complexity(password):
         return "Password must be at least 6 characters long"
     return None
 
+def plain(password, compare=None):
+    """Returns a password as is.  Used for configuration only.
+    """
+    if compare is not None:
+        return password == compare
+    return password
+
 def sha256(password, salt_or_compare=None):
     """Returns a password that is salted and hashed with sha256, or
     returns True or False if salt_or_compare is a 2-item list.

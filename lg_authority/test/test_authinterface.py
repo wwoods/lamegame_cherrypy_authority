@@ -14,6 +14,19 @@ class TestAuthInterface(unittest.TestCase):
         at._setup_initialize(ma)
         self.ai = AuthInterface()
 
+    def test_test_password(self):
+        self.assertNotEqual(None, self.ai.test_password('admin', 'admin'))
+        self.assertEqual(None, self.ai.test_password('admin', 'admin2'))
+        self.assertEqual(None, self.ai.test_password('admin2', 'admin'))
+
+    def test_test_password_inactive(self):
+        uname = 'testUser_inactive'
+        password = { 'pass': [ 'plain', 'mypass' ] }
+        uid = self.ai.user_create(uname, { 'auth_password': password })
+        self.assertNotEqual(None, self.ai.test_password(uname, 'mypass'))
+        self.ai.user_deactivate(uid)
+        self.assertEqual(None, self.ai.test_password(uname, 'mypass'))
+
     def test_user_activate(self):
         # Also tests deactivate
         uname = 'testUser_activate'

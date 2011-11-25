@@ -371,7 +371,7 @@ original destination</a></p>""".format(redirect)
 
         try:
             user = config.auth.get_user_from_email(email)
-            if user is None:
+            if user is None or user.get('inactive', False):
                 raise AuthError('Account matching e-mail not found.')
             from uuid import uuid4
             code = uuid4().hex

@@ -371,7 +371,7 @@ class AuthInterface(object):
             # Get the user record
             user = self.get_user_from_name(username)
             
-        if user is None:
+        if user is None or user.get('inactive', False):
             return None
             
         expected = self.get_user_password(user)
