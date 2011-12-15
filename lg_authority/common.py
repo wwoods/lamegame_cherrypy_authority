@@ -18,6 +18,14 @@ log.enabled = False
 class AuthError(Exception):
     pass
 
+class TokenExistedError(Exception):
+    """The user already had a recent token.  That token is contained in the
+    token attribute of this exception.
+    """
+    def __init__(self, oldToken, *args, **kwargs):
+        Exception.__init__(self, *args, **kwargs)
+        self.token = oldToken
+
 from .common_config import *
 
 #Alternative to None, used mostly for slates

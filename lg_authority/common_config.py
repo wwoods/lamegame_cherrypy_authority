@@ -53,7 +53,7 @@ config.update({
     #Configuration options for the specified site storage.
     ,
     'site_storage_sections_user': {
-        'index_lists':  [ 'auth_openid', 'groups', 'emails' ]
+        'index_lists':  [ 'auth_openid', 'auth_token', 'groups', 'emails' ]
         }
     #Configuration items for various sections of slates.
     #Just replace "_user" with "_{section name}" to set up config.

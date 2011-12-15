@@ -49,6 +49,61 @@ class AuthRoot(object):
 
     @cherrypy.expose
     @groups('auth')
+    def tokens(self, create=False):
+        p = LgPageControl()
+        newTab = GenericControl("""
+        {{{ style
+          .lg-auth-token {
+            border: solid 1px #000;
+            padding: 1em;
+          }
+          .lg-auth-token-new {
+            border-color: #B8FFB5;
+            background-color: #B8FFB5;
+          }
+          .lg-auth-token-existed {
+            border-color: #FFCA96;
+            background-color: #FFCA96;
+          }
+          .lg-auth-token-create {
+            border-color: #DDFFFD;
+            background-color: #DDFFFD;
+          }
+        }}}
+        <div class="lg-auth-token {type}">
+          {children}
+        </div>
+        """)
+        p.append(newTab)
+        if create:
+            try:
+                newToken = config.auth.token_create(cherrypy.user.id)
+                newTab.type = 'lg-auth-token-new'
+                newMessage = 'Your token is:'
+            except TokenExistedError, tee:
+                newToken = tee.token
+                newTab.type = 'lg-auth-token-existed'
+                newMessage = 'You already have a token.  It is:'
+            newTab.append(GenericControl(
+              "<p>{message}</p><p><b>{token}</b></p>"
+              , message=newMessage
+              , token=newToken
+            ))
+        else:
+            newTab.type = 'lg-auth-token-create'
+            newTab.append('<a href="tokens?create=true">Create a new token</a>')
+
+        tokenGrid = GenericControl("<p>Current tokens:</p><table>{children}</table>")
+        p.append(tokenGrid)
+        for token in cherrypy.user.dict.get('auth_token', []):
+            tokenGrid.append(
+                "<tr><td>{0}</td></tr>".format(token)
+            )
+
+        return p.gethtml()
+
+    @cherrypy.expose
+    @groups('auth')
     def index(self):
         p = LgPageControl()
         p.append('<p>You are logged in as ', TextControl(cherrypy.user.name), '</p>')
@@ -59,20 +114,10 @@ class AuthRoot(object):
         g.extend([ TextControl(g[1]) for g in get_user_groups_named().items() ])
         if config['site_registration'] != 'external':
             p.append('<p><a href="change_password">Change Password</a></p>')
+        p.append('<p><a href="tokens">API Tokens</a></p>')
         if 'admin' in cherrypy.user.groups:
             p.append('<p><a href="admin/">Admin Interface</a></p>')
         return p.gethtml()
-        body = []
-        body.append('<div class="lg_auth_form">')
-        body.append('<p>You are logged in as {user.id} <a href="logout">(logout)</a></p><p>You are a member of the following groups: {groups}</p>'.format(
-            user=cherrypy.user
-            , groups=[ g[1] for g in get_user_groups_named().items() ]
-            ))
-        body.append('<p><a href="change_password">Change Password</a></p>')
-        if 'admin' in cherrypy.user.groups:
-            body.append('<p><a href="admin/">Admin Interface</a></p>')
-        body.append('</div>')
-        return ''.join(body)
 
     @cherrypy.expose
     @cherrypy.config(**{'response.headers.Content-Type': 'text/plain'})
@@ -495,23 +540,6 @@ original destination</a></p>""".format(redirect)
         r3 = RowControl().append(InputControl(type='submit', value='Submit')).appendto(table)
 
         return p.gethtml()
-
-        return """
-<div class="lg_auth_form">
-<span style="color:#ff0000;" class="lg_auth_error">{error}</span>
-<form action="change_password" method="POST">
-  <input type="hidden" name="redirect" value="{redirect}" />
-  <p>
-    Change Password:
-    <table>
-      <tr><td>New Password</td><td><input type="password" name="newpass" /></td></tr>
-      <tr><td>New Password (again)</td><td><input type="password" name="newpass2" /></td></tr>
-      <tr><td><input type="submit" value="Submit" /></td></tr>
-    </table>
-  </p>
-</form>
-</div>
-        """.format(error=error, redirect=redirect)
 
     @cherrypy.expose
     @method_filter(methods=['POST'])

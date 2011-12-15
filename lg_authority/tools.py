@@ -178,9 +178,26 @@ class AuthTool(cherrypy.Tool):
 
         Then validate permissions by group.
         """
-        #Make the user into an object for conveniences
-        user = cherrypy.session.get('auth', None)
-        config.auth.serve_user_from_dict(user)
+        #Test for auth token
+        if 'lgAuthToken' in cherrypy.serving.request.params:
+            # REST request, disable session.
+            cherrypy.serving.session = None
+
+            # Get token and authenticate
+            token = cherrypy.serving.request.params['lgAuthToken']
+            del cherrypy.serving.request.params['lgAuthToken']
+            user = config.auth.get_user_from_token(token)
+            if user is not None:
+                d = user.todict()
+                d['__name__'] = d['name']
+                d['__id__'] = user.id
+            else:
+                d = None
+            config.auth.serve_user_from_dict(d)
+        else:
+            #Make the user into an object for conveniences
+            user = cherrypy.session.get('auth', None)
+            config.auth.serve_user_from_dict(user)
 
         #Now validate static permissions, if any
         access_groups = kwargs['groups']

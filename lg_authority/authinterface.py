@@ -5,6 +5,7 @@ import uuid
 from .common import *
 from . import passwords
 from .slates import Slate
+from .authtoken import AuthToken
 
 class UserHolder:
     """Though holders are saved internally as username slates with a special
@@ -214,6 +215,22 @@ class AuthInterface(object):
         else:
             raise AuthError('This OpenID is in use by multiple users')
 
+    def get_user_from_token(self, authToken):
+        """Returns the slate for the use rwith the given authToken, or None.
+        """
+        if AuthToken.isExpired(authToken):
+            raise AuthError("This authToken is no longer valid")
+        result = config.Slate.find_with('user', 'auth_token', authToken)
+        if len(result) == 0:
+            return None
+        elif len(result) > 1:
+            raise AuthError('This authToken belongs to multiple users')
+        else:
+            result = result[0]
+            if result.get('inactive', False):
+                raise AuthError("This authToken belongs to inactive user")
+            return result
+
     def get_user_holder(self, username):
         """Returns the given username record, only if that record has the
         'holder' property set to True.  Otherwise returns None.
@@ -381,6 +398,26 @@ class AuthInterface(object):
         if passwords.verify(password, expected['pass']):
             return user.id
         return None
+
+    def token_create(self, userId):
+        """Checks if a token can be created for the given user.  Raises a
+        TokenExistedError with the old token if the user already had a token
+        that is good for more than 90 days)
+        """
+        user = self.get_user_from_id(userId)
+        authTokens = user.get('auth_token', [])
+        tokensToRemove = []
+        for token in authTokens:
+            if AuthToken.isExpired(token):
+                tokensToRemove.append(token)
+            elif AuthToken.isTooRecentForNew(token):
+                raise TokenExistedError(token)
+        for t in tokensToRemove:
+            authTokens.remove(t)
+        newToken = AuthToken.create(user.id, user['name'], 365*2)
+        authTokens.append(newToken)
+        user['auth_token'] = authTokens
+        return newToken
 
     def get_group_name(self, groupid):
         """Returns the common name for the given groupid.
