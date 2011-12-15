@@ -101,7 +101,7 @@ class AuthTool(cherrypy.Tool):
         if conf['override_sessions']:
             hooks.attach('before_request_body', slates.init_session, priority=p-10, **conf)
             hooks.attach('before_finalize', slates.send_session_cookie, priority=p, **conf)
-        hooks.attach('before_request_body', self.check_auth, priority=p, **conf)
+        hooks.attach('before_handler', self.check_auth, priority=p, **conf)
 
     def _setup_initialize(self, conf):
         #Set the site specific settings in config (Most params don't update the 
