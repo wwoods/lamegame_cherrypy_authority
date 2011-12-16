@@ -419,6 +419,13 @@ class AuthInterface(object):
         user['auth_token'] = authTokens
         return newToken
 
+    def token_delete(self, userId, tokenDelete):
+        """Deletes the specified token from the user's account"""
+        user = self.get_user_from_id(userId)
+        authTokens = user.get('auth_token', [])
+        authTokens.remove(tokenDelete)
+        user['auth_token'] = authTokens
+
     def get_group_name(self, groupid):
         """Returns the common name for the given groupid.
         groupid may be the special identifiers 'any', 'auth', or 'user-'

@@ -49,7 +49,7 @@ class AuthRoot(object):
 
     @cherrypy.expose
     @groups('auth')
-    def tokens(self, create=False):
+    def tokens(self, create=False, delete=None):
         p = LgPageControl()
         newTab = GenericControl("""
         {{{ style
@@ -69,6 +69,14 @@ class AuthRoot(object):
             border-color: #DDFFFD;
             background-color: #DDFFFD;
           }
+          .lg-auth-token-delete {
+            border-color: #ff0000;
+            background-color: #ffdddd;
+          }
+          .lg-auth-token-string {
+            width: 100%;
+            word-wrap: break-word;
+          }
         }}}
         <div class="lg-auth-token {type}">
           {children}
@@ -85,19 +93,38 @@ class AuthRoot(object):
                 newTab.type = 'lg-auth-token-existed'
                 newMessage = 'You already have a token.  It is:'
             newTab.append(GenericControl(
-              "<p>{message}</p><p><b>{token}</b></p>"
+              '''<p>{message}</p>
+              <div style="font-weight:bold">
+                <span class="lg-auth-token-string">{token}</span>
+              </div>'''
               , message=newMessage
               , token=newToken
             ))
+        elif delete is not None:
+            newTab.type = 'lg-auth-token-delete'
+            try:
+                config.auth.token_delete(cherrypy.user.id, delete)
+                newTab.append('<p>Token deleted</p>')
+                newTab.append('<p><a href="tokens?create=true">Create a new token</a></p>')
+            except ValueError:
+                newTab.append('Token deletion failed')
         else:
             newTab.type = 'lg-auth-token-create'
             newTab.append('<a href="tokens?create=true">Create a new token</a>')
 
-        tokenGrid = GenericControl("<p>Current tokens:</p><table>{children}</table>")
+        tokenGrid = GenericControl("""
+        <p>Current tokens:</p>
+        <table style="width:100%;table-layout:fixed">{children}</table>
+        """)
         p.append(tokenGrid)
         for token in cherrypy.user.dict.get('auth_token', []):
             tokenGrid.append(
-                "<tr><td>{0}</td></tr>".format(token)
+                '''<tr><td style="width:3em"><a href="{deleteUrl}">delete</a></td>
+                <td><span class="lg-auth-token-string">{0}</pre></td></tr>
+                '''.format(
+                    token
+                    , deleteUrl='tokens?delete={0}'.format(token)
+                )
             )
 
         return p.gethtml()
