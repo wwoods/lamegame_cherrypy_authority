@@ -50,6 +50,17 @@ class UserObject:
         self.dict = Slate('user', self.id)
         self.session = Slate('user_session', self.id)
 
+    def addToGroup(self, group):
+        """Adds this user to the specified group, permanently.
+        """
+        self.dict['groups'] += [ group ]
+
+        # Update logged in data if necessary
+        oldAuth = cherrypy.serving.sessionActual.get('auth')
+        if oldAuth is not None:
+            oldAuth['groups'] += [ group ]
+            cherrypy.serving.sessionActual['auth'] = oldAuth
+
     def isOldPassword(self):
         """Returns True if our password is old and should be changed."""
         renew = config['site_password_renewal']
