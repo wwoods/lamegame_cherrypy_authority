@@ -122,6 +122,7 @@ config.update({
     #       email: { e-mail registration settings } - If set (not None), require
     #           an e-mail address to register.  If the openID endpoint does
     #           not provide an e-mail, the user will be prompted.
+    #       logout: Additional URL to use for logouts
     #None - Users will be redirected to the login page if their openID
     #    fails, and the New Account link will be replaced with text asking
     #    users who feel they should have permission to contact the 

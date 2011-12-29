@@ -267,7 +267,11 @@ New accounts are not allowed.  Contact administrator if you need access.
     @cherrypy.expose
     def logout(self):
         config.auth.logout()
-        redirect = config['logout_page']
+        if config['site_registration'] == 'external' \
+            and 'logout' in config['site_registration_conf']:
+            redirect = config['site_registration_conf']['logout']
+        else:
+            redirect = config['logout_page']
         if redirect:
             raise cherrypy.HTTPRedirect(redirect)
         return "You have logged out."
