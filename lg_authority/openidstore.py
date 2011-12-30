@@ -40,7 +40,7 @@ else:
                         best = val
                 result = best
             else:
-                result = a[handle]
+                result = a.get(handle)
             if result is not None and result.getExpiresIn() == 0:
                 result = None
             return result
