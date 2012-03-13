@@ -86,7 +86,7 @@ def deny_access():
             url_add_parms(denial, { 'redirect': cherrypy.url(qs=cherrypy.request.query_string) })
             )
     else:
-        raise cherrypy.HTTPError(401, 'Access Denied')
+        raise cherrypy.HTTPError(401, 'Unauthorized')
 
 def get_user_groups():
     """Returns a list of ids for the user's groups.  Includes
@@ -111,6 +111,16 @@ def groups(*groups):
         groups = groups[0]
 
     return cherrypy.config(**{ 'tools.lg_authority.groups': groups })
+
+def deny_no_redirect(cls_or_func):
+    """Decorator function that ensures that any denied response will not
+    be redirected, but will instead raise a 401 Unauthorized.  Useful for
+    AJAX calls.
+    """
+    return cherrypy.config(**{ 
+        'tools.lg_authority.deny_page_anon': None
+        ,'tools.lg_authority.deny_page_auth': None
+        })(cls_or_func)
 
 def check_groups(*groups):
     """Compare the user's groups to *groups.  If the user is in ANY
