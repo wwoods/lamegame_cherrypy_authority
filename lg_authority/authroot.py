@@ -147,6 +147,16 @@ class AuthRoot(object):
         return p.gethtml()
 
     @cherrypy.expose
+    @groups('auth')
+    def close_window(self):
+        """An automated login target; closes the window.
+        """
+        p = LgPageControl()
+        p.append('<p>Logged in.  Please close this window.</p>');
+        p.append('<script type="text/javascript">window.close();</script>');
+        return p.gethtml()
+
+    @cherrypy.expose
     @cherrypy.config(**{'response.headers.Content-Type': 'text/plain'})
     def login_service(self, **kwargs):
         if 'username' in kwargs:
