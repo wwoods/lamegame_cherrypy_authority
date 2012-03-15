@@ -133,7 +133,9 @@ class AuthRoot(object):
     @groups('auth')
     def index(self):
         p = LgPageControl()
-        p.append('<p>You are logged in as ', TextControl(cherrypy.user.name), '</p>')
+        intro = GenericControl('<p>{children}</p>').appendto(p)
+        intro.append('You are logged in as')
+        intro.append(TextControl(cherrypy.user.name))
         g = GenericControl(
             '<p>You are a member of the following groups: {children}</p>'
             , child_wrapper = [ '', ', ', '' ]

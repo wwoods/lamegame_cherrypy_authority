@@ -91,6 +91,7 @@ class LgMenuControl(Control):
                 kwargs['path'] = get_auth_path(kwargs['path'])
         self.append(Link(path='/auth/', name='Dashboard'))
         self.append(Link(path='/auth/change_password', name='Change Password'))
+        self.append(Link(path='/auth/logout', name='Logout'))
         if 'admin' in cherrypy.user.groups:
             admin = GenericControl(
                 '<div style="'
