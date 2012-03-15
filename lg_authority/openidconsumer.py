@@ -44,7 +44,7 @@ else:
 
     class OpenIdConsumerRoot(object):
         """A cherrypy object that logs into open id.  Is presumed to be
-        mounted at {AuthRoot}/login_openid
+        mounted at {AuthRoot}/login_openid/
         """
 
         supported = True
@@ -145,6 +145,8 @@ else:
             c = self.get_consumer()
 
             trust_root, return_to = self.get_points(redirect)
+            if log.enabled:
+                log("openidconsumer - Got finish kwargs: " + repr(kwargs))
             response = c.complete(kwargs, return_to)
 
             #Check the sreg response

@@ -118,7 +118,7 @@ else:
             return self.handleCheckIDRequest(self.get_request())
 
         def handleCheckIDRequest(self, openid_request):
-            if not cherrypy.user:
+            if cherrypy.serving.user is None:
                 self.set_request(openid_request)
                 raise cherrypy.HTTPRedirect(
                     url_add_parms(
@@ -155,7 +155,11 @@ else:
                 #are already logged in
                 openid_response = openid_request.answer(False)
                 return self.displayResponse(openid_response)
-            elif get_domain(trust_root).endswith(
+            
+            # Beyond this point, we're definitely using our response.
+            # Store it.
+            self.set_request(openid_request)
+            if get_domain(trust_root).endswith(
                     get_domain(cherrypy.url().replace('/www.', '/'))
                 ):
                 # e.g. if we get a request from test.lamegameproductions.com to
@@ -165,7 +169,6 @@ else:
                     , { 'allow': True }
                     ))
             else:
-                self.set_request(openid_request)
                 return self.showDecidePage(openid_request, trust_root)
 
         def showDecidePage(self, openid_request, trust_root):

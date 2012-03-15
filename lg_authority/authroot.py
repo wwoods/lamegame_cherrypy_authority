@@ -242,14 +242,14 @@ New accounts are not allowed.  Contact administrator if you need access.
                 if 'admin' in kwargs:
                     prov_parms['admin'] = 'true'
                 li = """<li><a href="{url}">{name}</a></li>""".format(
-                    url = url_add_parms('login_openid', prov_parms)
+                    url = url_add_parms('login_openid/', prov_parms)
                     ,name = name
                     )
                 openid_list.append(li)
 
             add_provider('Google', 'https://www.google.com/accounts/o8/id')
             add_provider('Yahoo!', 'http://yahoo.com')
-            openid_list.append("""<li><form method="GET" action="login_openid" class="lg_auth_openid_><input type="hidden" name="redirect" value="{redirect}"/>OpenID URL: <input style="width:20em;" type="text" name="url" value="http://"/><input type="submit" value="Submit"/></form></li>""".format(**kwargs))
+            openid_list.append("""<li><form method="GET" action="login_openid/" class="lg_auth_openid_><input type="hidden" name="redirect" value="{redirect}"/>OpenID URL: <input style="width:20em;" type="text" name="url" value="http://"/><input type="submit" value="Submit"/></form></li>""".format(**kwargs))
             openid_list = ''.join(openid_list)
             openid_form = """
 <p class="lg_auth_select_openid">

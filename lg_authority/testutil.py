@@ -46,7 +46,9 @@ class LgWebCase(CPWebCase):
         if 'headers' in kwargs:
             kwargs['headers'] += self.cookies
         else:
-            kwargs['headers'] = self.cookies
+            # be sure to copy cookies here so we don't add non-cookies to
+            # the cookies collection
+            kwargs['headers'] = self.cookies[:]
 
         if 'body' in kwargs:
             body = kwargs['body']
@@ -59,8 +61,29 @@ class LgWebCase(CPWebCase):
                 argsList[0] += '?' + body
                 args = tuple(argsList)
 
-        old_cookies = self.cookies
+        old_cookies = self.cookies # self.cookies is re-set by getPage
         result = CPWebCase.getPage(self, *args, **kwargs)
+
+        # Re-merge old_cookies into self.cookies, since the server might
+        # not have re-set all of our cookies
+        allCookies = [ z 
+            for c,v in self.cookies 
+            for z in v.replace('\r', '').split('\n')
+        ]
+        cookiesSet = {}
+        for cookie in allCookies:
+            name, value = cookie.split(';', 1)[0].split('=', 1)
+            cookiesSet[name] = value
+        for (c, v) in old_cookies:
+            name, value = v.split('=', 1)
+            cookiesSet.setdefault(name, value)
+        self.cookies = [ 
+            ( 
+                'Cookie'
+                , '; '.join([ '='.join([ n, v ]) 
+                    for n,v in cookiesSet.items() ])
+            )
+        ]
 
         return result
 

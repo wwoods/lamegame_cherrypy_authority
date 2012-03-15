@@ -14,7 +14,7 @@ class ExternalRegistrar(OpenRegistrar):
         if 'open_id' in self.conf:
             self.required_user_field = 'auth_openid'
             self.domain = get_domain(self.conf['open_id'])
-            self.url = "login_openid?url={0}".format(self.conf['open_id'])
+            self.url = "login_openid/?url={0}".format(self.conf['open_id'])
         else:
             raise AuthError("Unrecognized external registration")
 
