@@ -207,7 +207,6 @@ else:
                     emails = emails[0]
                 sreg_data['email'] = emails
                 sreg_data['nickname'] = cherrypy.user.name
-                cherrypy.log("SREG_DATA: " + repr(sreg_data))
 
                 sreg_req = sreg.SRegRequest.fromOpenIDRequest(openid_request)
                 sreg_resp = sreg.SRegResponse.extractResponse(sreg_req, sreg_data)
