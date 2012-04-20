@@ -218,7 +218,7 @@ New accounts are not allowed.  Contact administrator if you need access.
   <p>
     Password Login:
     <table>
-      <tr><td>Username or Email</td><td><input type="text" name="username" /></td></tr>
+      <tr><td>Username or Email</td><td><input type="text" name="username" autofocus="autofocus"/></td></tr>
       <tr><td>Password</td><td><input type="password" name="password" /></td></tr>
       <tr><td><input type="submit" value="Submit" /></td></tr>
       {forgot}
