@@ -86,7 +86,7 @@ def GenericControl(template, **kwargs):
     result = GenericControl.__types__.get(template, None)
     if result is None:
         result = type(
-            'GenericControl: ' + template
+            'GenericControlDynamicType'
             , (Control,)
             , {
                 'template': template
