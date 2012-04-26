@@ -38,7 +38,7 @@ class Control(object):
     child.
     """
 
-    template = ""
+    template = u""
     template__doc = """The text that will be format()'d with kwargs and emitted.
     Note that {children} will be replaced with any child controls.
 
@@ -120,7 +120,7 @@ class Control(object):
             return
         cls._template_loaded = True
 
-        template = cls.template
+        template = unicode(cls.template)
         if not template.startswith('\n') \
             and not template.startswith('{') \
             and not template.startswith('<') \
@@ -323,13 +323,13 @@ class Control(object):
         #Prepare ourselves for rendering
         self.prerender(kwargs)
 
-        parts = self.template.split('{children}')
+        parts = self.template.split(u'{children}')
         if len(parts) > 1:
             pre = parts[0]
-            post = '{children}'.join(parts[1:])
+            post = u'{children}'.join(parts[1:])
         else:
             pre = parts[0]
-            post = ''
+            post = u''
 
         yield pre.format(**kwargs)
         for c in child_gen:
@@ -342,5 +342,5 @@ class LiteralControl(Control):
     formatting.
     """
 
-    template = "{html}"
+    template = u"{html}"
 
