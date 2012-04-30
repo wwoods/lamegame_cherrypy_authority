@@ -6,6 +6,7 @@ import datetime
 from .common import *
 from .controls import *
 from .slates import Slate
+import passwords
 
 def admin_to_json(obj):
     if isinstance(obj, datetime.datetime):
@@ -195,7 +196,17 @@ class AdminRoot(object):
 
     @cherrypy.expose
     def edit_user_create(self, userName):
-        userId = config.auth.user_create(userName, {})
+        """Makes the given user, with the default password of "password"
+        """
+        userId = config.auth.user_create(userName
+            , { 
+                'auth_password': {
+                    'date': datetime.datetime.utcnow()
+                    ,'pass': [ 'sha256', passwords.sha256('password') ]
+                }
+                , 'groups': []
+            }
+        )
         raise cherrypy.HTTPRedirect(cherrypy.url('edit_user?userId={0}'.format(userId)))
 
     @cherrypy.expose

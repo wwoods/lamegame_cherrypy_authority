@@ -83,6 +83,8 @@ class AuthInterface(object):
     def user_name_invalid(self, username):
         """Return a human-readable error if username is invalid or
         has invalid characters.
+
+        Else returns None (name is ok)
         """
         if len(username) > 40:
             return "Name is too long"
@@ -96,7 +98,9 @@ class AuthInterface(object):
             return "Name may not contain the @ symbol"
         if '/' in username:
             return "Name may not contain the / symbol"
-        return False
+        if not re.match(r'^[a-zA-Z0-9_\.]+$', username):
+            return "Name must only contain latin characters, underscores, or periods"
+        return None
 
     def user_create(self, userName, data):
         """Inserts a user or raises an *Error
@@ -105,7 +109,10 @@ class AuthInterface(object):
         """
         kwargs = { 'timeout': None }
 
-        usernameError = self._validateUsername(userName)
+        usernameError = None
+        # Bypass name checking if we're using e-mail
+        if userName not in data.get('emails', []):
+            usernameError = self.user_name_invalid(userName)
         if usernameError is not None:
             raise AuthError(usernameError)
 
@@ -482,18 +489,4 @@ class AuthInterface(object):
         del nameSlate['holder']
 
         return uid
-
-    def _validateUsername(self, username):
-        """Verify that the given username is a valid user name, and return
-        a suitable error message if it does not.  Return None if the name
-        is ok.
-        """
-        allowed = re.compile('^[A-Za-z0-9_.]+$')
-        if len(username) > 40:
-            return "Usernames cannot be longer than 40 characters."
-        if username.startswith('zzz'):
-            return "Invalid username."
-        if allowed.match(username) is None:
-            return "Names must only contain latin characters, underscores, and periods."
-        return None
 

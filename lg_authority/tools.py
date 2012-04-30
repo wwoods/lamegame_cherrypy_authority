@@ -26,7 +26,8 @@ class AuthTool(cherrypy.Tool):
         """Reset the initialized variable, so that the next request reloads
         lg_authority's configuration.  Useful for testing.
         """
-        del self.initialized
+        if hasattr(self, 'initialized'):
+            del self.initialized
 
     def register_as(self, name):
         """Adds an alias for this tool; may be called multiple times.
@@ -155,15 +156,15 @@ class AuthTool(cherrypy.Tool):
         for name,data in config['site_group_list'].items():
             try:
                 config.auth.group_create(name, data)
-            except AuthError:
-                pass
+            except AuthError, e:
+                log("Failed to add group {0}: {1}".format(name, str(e)))
 
         if config['site_registration'] != 'external':
             for name,data in config['site_user_list'].items():
                 try:
                     config.auth.user_create(name, data)
-                except AuthError:
-                    pass
+                except AuthError, e:
+                    log("Failed to add user {0}: {1}".format(name, e))
 
         #Set up registration mechanism
         reg_method = config['site_registration']
