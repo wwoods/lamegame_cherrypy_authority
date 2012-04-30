@@ -84,6 +84,8 @@ class AuthInterface(object):
         """Return a human-readable error if username is invalid or
         has invalid characters.
         """
+        if len(username) > 40:
+            return "Name is too long"
         if '"' in username or "'" in username:
             return "Name may not have quotes"
         if '<' in username or '>' in username:

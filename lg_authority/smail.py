@@ -32,6 +32,8 @@ def send_mail(to, subject, body, frm=None):
     if user:
         password = conf.get('smtppass')
         s.login(user, password)
-    s.sendmail(frm, to, msg.as_string())
-    s.quit()
+    try:
+        s.sendmail(frm, to, msg.as_string())
+    finally:
+        s.quit()
 

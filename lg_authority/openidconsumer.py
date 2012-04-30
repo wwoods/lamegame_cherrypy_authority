@@ -167,9 +167,8 @@ else:
                     for k,v in sreg_response.items():
                         user_params[k] = v
 
-                if not user_params.get('nickname') and user_params.get('email'):
-                    user_params['nickname'] = user_params.get('email') \
-                        .split('@')[0]
+                # If we don't have a nickname, that's ok - we still have 
+                # e-mail, which will work as a username.
 
                 extra_args = {}
                 if 'admin' in kwargs:

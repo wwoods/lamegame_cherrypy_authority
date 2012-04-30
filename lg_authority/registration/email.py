@@ -1,3 +1,4 @@
+import re
 import time
 from uuid import uuid4
 
@@ -23,6 +24,10 @@ class EmailRegistrar(Registrar):
         email = authargs['email']
         uargs['emails'] = [ email ]
         uargs['email_code'] = code
+
+        #Check the e-mail format
+        if not re.match(r'^\S+@\S+\.\S+$', email):
+            raise AuthError("Invalid e-mail address")
 
         #App-level enforcement of no duplicate emails
         #App-level is OK because:

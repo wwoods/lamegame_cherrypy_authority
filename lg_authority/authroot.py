@@ -344,21 +344,29 @@ original destination</a></p>""".format(redirect)
     
         if tryAdd:
             try:
-                uname = kwargs['username'].lower()
+                uname = kwargs.get('username')
+                email = kwargs.get('email')
+                if uname is None and email is not None:
+                    uname = email
                 uargs = { 'groups': [] }
                 ok = True
                 #Intermediate (not final) username existence check
                 if ok:
-                    error = config.auth.user_name_invalid(uname)
+                    error = None
+                    # We allow username to match e-mail
+                    if uname != email:
+                        error = config.auth.user_name_invalid(uname)
                     if error:
                         kwargs['error'] = error
                         ok = False
                 if ok and config.auth.user_exists(uname):
                     kwargs['error'] = 'Username already taken'
                     ok = False
-                if ok and 'password' in kwargs:
-                    if kwargs['password'] != kwargs['password2']:
+                if ok and 'password' in oldKwargs:
+                    if 'password2' in oldKwargs \
+                        and kwargs['password'] != kwargs['password2']:
                         kwargs['error'] = 'Passwords did not match'
+                        # Replace the second password with a blank
                         del kwargs['password2']
                         ok = False
                     error = passwords.check_complexity(kwargs['password'])
@@ -398,14 +406,25 @@ original destination</a></p>""".format(redirect)
             ,'username': kwargs.get('username', '')
             ,'email': kwargs.get('email', '')
             ,'redirect': redirect
+            ,'unameEmail': ''
             }
+        usingEmail = False
+        if config['site_registration'] == 'email':
+            usingEmail = True
+            template_args['unameEmail'] = ' (or blank to use your e-mail)'
+
         if kwargs.get('openid') != 'stored':
+            secondPass = ''
+            if not usingEmail:
+                secondPass = '''<tr><td>Password (again)</td><td><input type="password" name="password2" value="{password2}" /></div></tr>'''
             template_args['password_form'] = """
 <tr><td>Password</td><td><input type="password" name="password" value="{password}" /></td></tr>
-<tr><td>Password (again)</td><td><input type="password" name="password2" value="{password2}" /></td></tr>
+{secondPass}
 """.format(
                 password=kwargs.get('password', '')
-                , password2=kwargs.get('password2', '')
+                , secondPass=secondPass.format(
+                    password2=kwargs.get('password2', '')
+                )
             )
 
         #Go through registration providers, and ask for fields
@@ -428,9 +447,9 @@ original destination</a></p>""".format(redirect)
   <input type="hidden" name="redirect" value="{redirect}" />
   <input type="hidden" name="openid" value="{openid}" />
   <table>
-    <tr><td>Username</td><td><input type="text" name="username" value="{username}" /></td></tr>
-    {password_form}
     {registration_forms}
+    <tr><td>Username{unameEmail}</td><td><input type="text" name="username" value="{username}" /></td></tr>
+    {password_form}
     {captcha_form}
     <tr><td><input type="submit" value="Submit" /></td></tr>
   </table>
@@ -631,7 +650,9 @@ original destination</a></p>""".format(redirect)
             new_account_args = {}
             if user_params.get('email'):
                 new_account_args['email'] = user_params.get('email')
-            if user_params.get('nickname'):
+            elif user_params.get('nickname'):
+                # elif because, if we have e-mail, use that instead of a 
+                # username.
                 new_account_args['username'] = user_params.get('nickname')
             new_account_args['error'] = 'Unknown OpenID.  If you would like to register an account with this OpenID, fill out the following form:'
             new_account_args['openid'] = 'stored'
