@@ -105,6 +105,17 @@ def get_user_groups_named():
         result[grp] = config.auth.get_group_name(grp)
     return result
 
+def get_user_id(nameOrEmail):
+    """Returns a user ID acquired from the given user name or e-mail.
+    """
+    user = config.auth.get_user_from_email(nameOrEmail)
+    if user is not None:
+        return user.id
+    user = config.auth.get_user_from_name(nameOrEmail)
+    if user is not None:
+        return user.id
+    return None
+
 def groups(*groups):
     """Decorator function that winds up calling cherrypy.config(**{ 'tools.lg_authority.groups': groups })"""
     if len(groups) == 1 and type(groups[0]) == list:
