@@ -88,14 +88,27 @@ def deny_access():
     else:
         raise cherrypy.HTTPError(401, 'Unauthorized')
 
-def get_user_groups():
+def get_user_groups(userId = None):
     """Returns a list of ids for the user's groups.  Includes
     special groups 'any', and if logged in, 'auth' and 'user-'
+
+    userId - str -- If non-none, get groups for this user instead of the
+            user logged in (cherrypy.user is used if None)
     """
-    user = cherrypy.serving.user
+    userGroups = None
+    if userId is None:
+        user = cherrypy.serving.user
+        if user is not None:
+            userGroups = user.groups
+    else:
+        user = config.auth.get_user_from_id(userId)
+        if user is None:
+            raise ValueError("Invalid user ID")
+        userGroups = user['groups']
+
     result = [ 'any' ]
-    if user is not None:
-        result = [ 'any', 'auth', 'user-' + user.id ] + user.groups
+    if userGroups is not None:
+        result = [ 'any', 'auth', 'user-' + user.id ] + userGroups
     return result
 
 def get_user_groups_named():
