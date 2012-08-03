@@ -11,6 +11,34 @@ Optional:
     python-openid - For Open ID support
 
 
+Installation
+============
+1. git clone git://github.com/wwoods/lamegame_cherrypy_authority.git
+2. cd lamegame_cherrypy_authority
+3. sudo python setup.py install (or python setup.py install --user to install without sudo)
+
+
+Example Usage (just want to block out non-logged-in users)
+==========================================================
+import cherrypy
+import lg_authority
+
+@lg_authority.groups('auth')
+class Root(object):
+    auth = lg_authority.AuthRoot()
+
+    @cherrypy.expose
+    def index(self):
+        return "Logged in!"
+
+cherrypy.config.update({ 
+    'tools.lg_authority.on': True, 
+    # Uncomment the following two lines to persist changed user / group data
+    # 'tools.lg_authority.site_storage': 'sqlite3', 
+    # 'tools.lg_authority.site_storage_conf': { 'file': 'test.db' } })
+cherrypy.quickstart(Root())
+
+
 Storage Options
 ===============
 
